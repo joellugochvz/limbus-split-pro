@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "1.0",
+  "buildType": "development",
+  "_comment": "PLACEHOLDER. sha256 y expectedSizeBytes deben rellenarse al descargar y verificar los pesos reales en Windows. Ningún hash aquí es real todavía.",
+  "models": [
+    {
+      "id": "spleeter-4stems",
+      "relativePath": "models/spleeter/4stems",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000",
+      "expectedSizeBytes": 0,
+      "version": "PENDIENTE-DE-DESCARGA-Y-HASH-REAL",
+      "origin": "https://github.com/deezer/spleeter",
+      "codeLicense": "MIT",
+      "weightsLicense": "MIT",
+      "licenseEvidenceUrl": "https://github.com/deezer/spleeter/blob/master/LICENSE",
+      "author": "Deezer Research",
+      "attribution": "Spleeter (c) Deezer, MIT License",
+      "capabilities": ["voz_principal", "bateria_completa", "bajo", "other"],
+      "redistributionAuthorized": true,
+      "commercialUseAuthorized": true
+    },
+    {
+      "id": "htdemucs",
+      "relativePath": "models/demucs/htdemucs",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000",
+      "expectedSizeBytes": 0,
+      "version": "PENDIENTE",
+      "origin": "https://github.com/facebookresearch/demucs",
+      "codeLicense": "MIT",
+      "weightsLicense": "NO_ESPECIFICADA",
+      "licenseEvidenceUrl": "https://github.com/facebookresearch/demucs/issues/327",
+      "author": "Meta AI / Alexandre Défossez et al.",
+      "attribution": "Demucs (c) Meta Platforms, código MIT",
+      "capabilities": ["voz_principal", "coros", "bateria_completa", "bajo", "guitarra", "piano_teclados", "other"],
+      "redistributionAuthorized": false,
+      "commercialUseAuthorized": false
+    }
+  ]
+}

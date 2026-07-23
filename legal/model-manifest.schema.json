@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Limbus Split Pro - Model Manifest",
+  "type": "object",
+  "required": ["schemaVersion", "buildType", "models"],
+  "properties": {
+    "schemaVersion": { "type": "string" },
+    "buildType": { "type": "string", "enum": ["public", "development"] },
+    "models": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id", "relativePath", "sha256", "expectedSizeBytes", "version", "origin",
+          "codeLicense", "weightsLicense", "licenseEvidenceUrl", "author", "attribution",
+          "capabilities", "redistributionAuthorized", "commercialUseAuthorized"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "relativePath": { "type": "string" },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "expectedSizeBytes": { "type": "integer", "minimum": 1 },
+          "version": { "type": "string" },
+          "origin": { "type": "string" },
+          "codeLicense": { "type": "string" },
+          "weightsLicense": { "type": "string" },
+          "licenseEvidenceUrl": { "type": "string" },
+          "author": { "type": "string" },
+          "attribution": { "type": "string" },
+          "capabilities": { "type": "array", "items": { "type": "string" } },
+          "redistributionAuthorized": { "type": "boolean" },
+          "commercialUseAuthorized": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}

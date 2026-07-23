@@ -1,0 +1,10 @@
+{
+  "_comment": "Rellenar al ensamblar el runtime en una máquina Windows real (sección 9). No inventar hashes.",
+  "pythonVersion": "3.11.x",
+  "sourceUrl": "https://www.python.org/ftp/python/<version>/python-<version>-embed-amd64.zip",
+  "sha256": "PENDIENTE_DE_DESCARGA_REAL",
+  "architecture": "x64",
+  "assembledOn": "PENDIENTE_FECHA_ISO8601",
+  "assembledBy": "PENDIENTE_MAQUINA_DE_BUILD_CI",
+  "notes": "Ensamblado mediante script reproducible, no copiado de una instalación arbitraria del desarrollador."
+}

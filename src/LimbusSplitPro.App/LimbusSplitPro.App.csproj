@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>LimbusSplitPro.App</RootNamespace>
+    <AssemblyName>LimbusSplitPro</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- No requiere privilegios de administrador (sección 19) -->
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\LimbusSplitPro.Audio\LimbusSplitPro.Audio.csproj" />
+    <ProjectReference Include="..\LimbusSplitPro.Engine\LimbusSplitPro.Engine.csproj" />
+    <ProjectReference Include="..\LimbusSplitPro.Models\LimbusSplitPro.Models.csproj" />
+  </ItemGroup>
+</Project>

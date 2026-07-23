@@ -1,0 +1,64 @@
+# Pipeline de CI para Limbus Split Pro.
+# IMPORTANTE: este archivo está preparado para copiarse a .github/workflows/ y ejecutarse
+# en un runner windows-latest real de GitHub Actions. Yo no puedo ejecutar este pipeline
+# desde este entorno (sandbox Linux sin Windows); queda listo para que tú lo dispares.
+name: build-windows
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 10 LTS
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore (con packages.lock.json)
+        run: dotnet restore LimbusSplitPro.sln --locked-mode
+
+      - name: Build Release x64
+        run: dotnet build LimbusSplitPro.sln -c Release -r win-x64 --no-restore
+
+      - name: Unit + integration tests
+        run: dotnet test tests/LimbusSplitPro.Tests/LimbusSplitPro.Tests.csproj -c Release --no-build
+
+      - name: Verificar arquitectura de binarios (x64)
+        run: |
+          # TODO: script PowerShell que audite PE headers de todos los .exe/.dll generados
+          echo "Pendiente: scripts/Verify-BinaryArchitecture.ps1"
+
+      - name: Verificar manifiesto de modelos (fail-closed)
+        run: |
+          # TODO: ejecutar el ModelVerifier contra legal/model-manifest.json antes de empaquetar.
+          # Debe FALLAR el build si algún modelo de la build pública no tiene
+          # redistributionAuthorized=true y commercialUseAuthorized=true.
+          echo "Pendiente: scripts/Verify-ModelManifest.ps1"
+
+      - name: Generar SBOM (CycloneDX)
+        run: |
+          # TODO: dotnet tool install --global CycloneDX y generar desde el contenido real
+          # de la build final saneada, no desde una lista manual (sección 13).
+          echo "Pendiente: integración CycloneDX"
+
+      - name: Construir instalador (WiX v5)
+        run: |
+          # TODO: candle/light o `wix build` sobre installer/wix/*.wxs
+          echo "Pendiente: build MSI"
+
+      - name: Firma Authenticode
+        if: false # solo se activa cuando existan secretos de certificado protegidos
+        run: |
+          # TODO: signtool sign /fd sha256 /tr <timestamp RFC3161> /td sha256 ...
+          echo "Firma deshabilitada: no hay certificado de firma de código disponible."
+
+      - name: Publicar hashes de artefactos
+        run: |
+          # TODO: Get-FileHash sobre el MSI/EXE final y publicar como artifact del workflow
+          echo "Pendiente: publicación de checksums SHA-256"

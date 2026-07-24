@@ -11,7 +11,7 @@
 
         <!-- Tarjeta de instrumento del selector "Qué extraer" (sección 5) -->
         <Style x:Key="StemCardStyle" TargetType="ToggleButton">
-            <Setter Property="Padding" Value="12" />
+            <Setter Property="Padding" Value="8" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="HorizontalContentAlignment" Value="Left" />
             <Setter Property="Template">
@@ -20,7 +20,7 @@
                         <Border x:Name="CardBorder"
                                 Background="{StaticResource CardBackgroundBrush}"
                                 BorderBrush="{StaticResource CardBorderBrush}"
-                                BorderThickness="1.5" CornerRadius="10" Padding="12,10">
+                                BorderThickness="1.2" CornerRadius="8" Padding="8,6">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto" />
@@ -28,15 +28,15 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="{Binding IconGlyph}" FontFamily="Segoe Fluent Icons"
-                                           FontSize="18" VerticalAlignment="Top" Margin="0,0,10,0"
+                                           FontSize="13" VerticalAlignment="Center" Margin="0,0,7,0"
                                            Foreground="{StaticResource AccentBrush}" />
-                                <StackPanel Grid.Column="1">
-                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="14"
-                                               Foreground="{StaticResource TextPrimaryBrush}" />
-                                    <TextBlock Text="{Binding Subtitle}" FontSize="11.5" TextWrapping="Wrap"
-                                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" />
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12"
+                                               Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding Subtitle}" FontSize="10" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
+                                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,1,0,0" />
                                 </StackPanel>
-                                <Ellipse Grid.Column="2" Width="18" Height="18" VerticalAlignment="Top"
+                                <Ellipse Grid.Column="2" Width="12" Height="12" VerticalAlignment="Center"
                                          Fill="{StaticResource AccentBrush}"
                                          Visibility="{Binding IsSelected, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource BoolToVis}}" />
                             </Grid>
@@ -216,7 +216,7 @@
                                                   IsChecked="{Binding IsSelected, Mode=TwoWay}"
                                                   IsEnabled="{Binding IsAvailable}"
                                                   ToolTip="{Binding UnavailableReason}"
-                                                  Margin="0,0,6,6" />
+                                                  Margin="0,0,5,5" />
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>

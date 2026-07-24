@@ -61,21 +61,25 @@ jobs:
       - name: Instalar Spleeter en el runtime embebido
         shell: pwsh
         run: |
-          try {
-            $py = "runtime/python-embed/dist/python.exe"
-            Invoke-WebRequest -Uri "https://bootstrap.pypa.io/get-pip.py" -OutFile "get-pip.py" -UseBasicParsing
-            & $py get-pip.py --no-warn-script-location
-            if ($LASTEXITCODE -ne 0) { throw "Bootstrap de pip fallo con codigo $LASTEXITCODE" }
-            & $py -m pip install --no-warn-script-location spleeter
-            if ($LASTEXITCODE -ne 0) { throw "pip install spleeter fallo con codigo $LASTEXITCODE" }
-            Write-Output "::notice::SPLEETER_INSTALL_OK"
-          } catch {
-            $errMsg = $_ | Out-String
-            $lines = ($errMsg -split "`r?`n" | Select-Object -Last 60)
+          $py = "runtime/python-embed/dist/python.exe"
+          Invoke-WebRequest -Uri "https://bootstrap.pypa.io/get-pip.py" -OutFile "get-pip.py" -UseBasicParsing
+          $pipBootstrapOutput = & $py get-pip.py --no-warn-script-location 2>&1 | Out-String
+          Write-Host $pipBootstrapOutput
+          if ($LASTEXITCODE -ne 0) {
+            $lines = ($pipBootstrapOutput -split "`r?`n" | Select-Object -Last 60)
+            $escaped = ($lines -join "%0A")
+            Write-Output "::error::PIP_BOOTSTRAP_FAIL%0A$escaped"
+            exit 1
+          }
+          $pipInstallOutput = & $py -m pip install --no-warn-script-location spleeter 2>&1 | Out-String
+          Write-Host $pipInstallOutput
+          if ($LASTEXITCODE -ne 0) {
+            $lines = ($pipInstallOutput -split "`r?`n" | Select-Object -Last 80)
             $escaped = ($lines -join "%0A")
             Write-Output "::error::SPLEETER_INSTALL_FAIL%0A$escaped"
             exit 1
           }
+          Write-Output "::notice::SPLEETER_INSTALL_OK"
 
       - name: Descargar y verificar modelo 4stems de Spleeter
         shell: pwsh

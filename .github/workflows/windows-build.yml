@@ -38,10 +38,18 @@ jobs:
       - name: Ensamblar runtime Python embebido (reproducible, verificado)
         shell: pwsh
         run: |
-          ./runtime/python-embed/Assemble-PythonEmbed.ps1
-          $prov = Get-Content ./runtime/python-embed/dist/PROVENANCE.json -Raw
-          $oneline = ($prov -replace "`r?`n", " ")
-          Write-Output "::notice::PYTHON_PROVENANCE $oneline"
+          try {
+            ./runtime/python-embed/Assemble-PythonEmbed.ps1
+            $prov = Get-Content ./runtime/python-embed/dist/PROVENANCE.json -Raw
+            $oneline = ($prov -replace "`r?`n", " ")
+            Write-Output "::notice::PYTHON_PROVENANCE $oneline"
+          } catch {
+            $errMsg = $_ | Out-String
+            $lines = ($errMsg -split "`r?`n" | Select-Object -Last 40)
+            $escaped = ($lines -join "%0A")
+            Write-Output "::error::PYEMBED_FAIL%0A$escaped"
+            exit 1
+          }
 
       - name: Subir runtime Python embebido como artifact
         uses: actions/upload-artifact@v4

@@ -76,6 +76,11 @@ jobs:
             -c Release -r win-x64 --self-contained true `
             -p:PublishSingleFile=false `
             -o publish/LimbusSplitPro
+          # Empaquetar el runtime Python y el motor junto al exe para que
+          # "Separar y exportar" pueda invocarlos de verdad en la build descargable.
+          Copy-Item -Recurse -Force engine-py publish/LimbusSplitPro/engine-py
+          New-Item -ItemType Directory -Force -Path publish/LimbusSplitPro/runtime/python-embed | Out-Null
+          Copy-Item -Recurse -Force runtime/python-embed/dist publish/LimbusSplitPro/runtime/python-embed/dist
 
       - name: Subir artefacto descargable
         uses: actions/upload-artifact@v4

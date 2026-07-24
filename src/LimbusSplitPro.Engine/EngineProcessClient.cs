@@ -13,14 +13,29 @@ namespace LimbusSplitPro.Engine;
 /// </summary>
 public sealed class EngineProcessClient : IAsyncDisposable
 {
+    // El motor Python (limbus_engine) usa camelCase en su contrato JSON Lines
+    // (inputFilePath, errorCode, outputFiles...). Sin esta política, System.Text.Json
+    // serializaría/leería en PascalCase por defecto y la comunicación fallaría en silencio.
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true,
+    };
+
     private readonly string _enginePath;
     private readonly string _pythonHome;
+    private readonly string _enginePyPath;
     private Process? _process;
 
-    public EngineProcessClient(string enginePath, string pythonHome)
+    /// <param name="enginePath">Ruta a python.exe dentro del runtime embebido.</param>
+    /// <param name="pythonHome">Carpeta raíz del runtime Python embebido (PYTHONHOME).</param>
+    /// <param name="enginePyPath">Carpeta que contiene el paquete limbus_engine (engine-py/),
+    /// pasada como PYTHONPATH ya que el runtime embebido no lo trae instalado.</param>
+    public EngineProcessClient(string enginePath, string pythonHome, string enginePyPath)
     {
         _enginePath = enginePath;
         _pythonHome = pythonHome;
+        _enginePyPath = enginePyPath;
     }
 
     public async IAsyncEnumerable<EngineEvent> RunAsync(
@@ -45,12 +60,13 @@ public sealed class EngineProcessClient : IAsyncDisposable
         psi.EnvironmentVariables["PYTHONHOME"] = _pythonHome;
         psi.EnvironmentVariables["PYTHONNOUSERSITE"] = "1";
         psi.EnvironmentVariables["PYTHONIOENCODING"] = "utf-8";
+        psi.EnvironmentVariables["PYTHONPATH"] = _enginePyPath;
 
         _process = new Process { StartInfo = psi, EnableRaisingEvents = true };
         _process.Start();
 
         // Enviamos la solicitud como una única línea JSON por stdin.
-        await _process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(request));
+        await _process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(request, JsonOptions));
         await _process.StandardInput.FlushAsync();
         _process.StandardInput.Close();
 
@@ -69,7 +85,7 @@ public sealed class EngineProcessClient : IAsyncDisposable
             EngineEvent? evt;
             try
             {
-                evt = JsonSerializer.Deserialize<EngineEvent>(line);
+                evt = JsonSerializer.Deserialize<EngineEvent>(line, JsonOptions);
             }
             catch (JsonException)
             {

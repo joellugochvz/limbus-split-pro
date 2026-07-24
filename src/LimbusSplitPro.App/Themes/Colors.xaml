@@ -1,10 +1,27 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <!--
-      Placeholder: la paleta final se define en la fase de mockup visual (sección 3:
-      "reconocible y algo divertida, sin resultar infantil"). No se inventa aquí sin
-      antes validar contraste alto y temas claro/oscuro con el usuario.
+      Paleta inicial inspirada en las referencias de interfaz que compartió el usuario:
+      fondo cálido claro, tarjetas con acentos de color por categoría de instrumento.
+      Sujeta a revisión en una pasada de diseño dedicada (sección 3 del encargo).
     -->
+    <Color x:Key="BackgroundColor">#FBF7F2</Color>
+    <Color x:Key="CardBackgroundColor">#FFFFFF</Color>
+    <Color x:Key="CardBorderColor">#E8E2D9</Color>
+    <Color x:Key="TextPrimaryColor">#2B2B2B</Color>
+    <Color x:Key="TextSecondaryColor">#8A8478</Color>
     <Color x:Key="AccentColor">#FF6B6B</Color>
+    <Color x:Key="AccentSelectedBorderColor">#FF6B6B</Color>
+    <Color x:Key="DisabledOverlayColor">#F2EFE9</Color>
+    <Color x:Key="PrimaryButtonColor">#1E1E1E</Color>
+
+    <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource BackgroundColor}" />
+    <SolidColorBrush x:Key="CardBackgroundBrush" Color="{StaticResource CardBackgroundColor}" />
+    <SolidColorBrush x:Key="CardBorderBrush" Color="{StaticResource CardBorderColor}" />
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimaryColor}" />
+    <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondaryColor}" />
     <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}" />
+    <SolidColorBrush x:Key="AccentSelectedBorderBrush" Color="{StaticResource AccentSelectedBorderColor}" />
+    <SolidColorBrush x:Key="DisabledOverlayBrush" Color="{StaticResource DisabledOverlayColor}" />
+    <SolidColorBrush x:Key="PrimaryButtonBrush" Color="{StaticResource PrimaryButtonColor}" />
 </ResourceDictionary>

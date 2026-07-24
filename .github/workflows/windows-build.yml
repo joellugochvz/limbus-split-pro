@@ -47,6 +47,20 @@ jobs:
         run: |
           echo "Pendiente: integracion CycloneDX"
 
+      - name: Publicar build portable (self-contained win-x64)
+        run: |
+          dotnet publish src/LimbusSplitPro.App/LimbusSplitPro.App.csproj `
+            -c Release -r win-x64 --self-contained true `
+            -p:PublishSingleFile=false `
+            -o publish/LimbusSplitPro
+
+      - name: Subir artefacto descargable
+        uses: actions/upload-artifact@v4
+        with:
+          name: LimbusSplitPro-dev-build
+          path: publish/LimbusSplitPro/
+          retention-days: 14
+
       - name: Construir instalador (WiX v5)
         run: |
           echo "Pendiente: build MSI"

@@ -18,7 +18,7 @@
 #>
 
 param(
-    [string]$PythonVersion = "3.11.15",
+    [string]$PythonVersion = "3.11.14",
     [string]$OutputDir = "$PSScriptRoot\dist"
 )
 

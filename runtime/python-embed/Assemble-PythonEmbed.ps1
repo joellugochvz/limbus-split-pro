@@ -67,6 +67,21 @@ New-Item -ItemType Directory -Path $OutputDir | Out-Null
 
 Expand-Archive -Path $downloadPath -DestinationPath $OutputDir -Force
 
+# El runtime embeddable trae un archivo pythonXY._pth que fuerza un modo aislado:
+# IGNORA las variables de entorno PYTHONHOME y PYTHONPATH por diseno (ver
+# https://docs.python.org/3/using/windows.html#the-embeddable-package). Sin
+# deshabilitarlo, LimbusSplitPro.Engine no podria apuntar el runtime al paquete
+# limbus_engine via PYTHONPATH. Se renombra (no se borra, para poder revertir)
+# de modo que el runtime vuelva al comportamiento estandar que si respeta
+# PYTHONHOME/PYTHONPATH, tal como requiere la seccion 9 del encargo.
+$pthFile = Get-ChildItem -Path $OutputDir -Filter "python3*._pth" | Select-Object -First 1
+if ($pthFile) {
+    Rename-Item -Path $pthFile.FullName -NewName "$($pthFile.Name).isolated-mode-disabled"
+    Write-Host "Modo aislado deshabilitado: $($pthFile.Name) -> $($pthFile.Name).isolated-mode-disabled"
+} else {
+    Write-Host "ADVERTENCIA: no se encontro archivo ._pth; verificar manualmente si PYTHONPATH funciona en este runtime."
+}
+
 $provenance = @{
     pythonVersion   = $PythonVersion
     sourceUrl       = $usedUrl

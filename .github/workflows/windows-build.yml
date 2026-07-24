@@ -35,6 +35,21 @@ jobs:
             exit $LASTEXITCODE
           }
 
+      - name: Ensamblar runtime Python embebido (reproducible, verificado)
+        shell: pwsh
+        run: |
+          ./runtime/python-embed/Assemble-PythonEmbed.ps1
+          $prov = Get-Content ./runtime/python-embed/dist/PROVENANCE.json -Raw
+          $oneline = ($prov -replace "`r?`n", " ")
+          Write-Output "::notice::PYTHON_PROVENANCE $oneline"
+
+      - name: Subir runtime Python embebido como artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-embed-runtime
+          path: runtime/python-embed/dist/
+          retention-days: 14
+
       - name: Verificar arquitectura de binarios (x64)
         run: |
           echo "Pendiente: scripts/Verify-BinaryArchitecture.ps1"

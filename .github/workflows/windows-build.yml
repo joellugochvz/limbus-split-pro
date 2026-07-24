@@ -58,6 +58,53 @@ jobs:
           path: runtime/python-embed/dist/
           retention-days: 14
 
+      - name: Instalar Spleeter en el runtime embebido
+        shell: pwsh
+        run: |
+          try {
+            $py = "runtime/python-embed/dist/python.exe"
+            Invoke-WebRequest -Uri "https://bootstrap.pypa.io/get-pip.py" -OutFile "get-pip.py" -UseBasicParsing
+            & $py get-pip.py --no-warn-script-location
+            if ($LASTEXITCODE -ne 0) { throw "Bootstrap de pip fallo con codigo $LASTEXITCODE" }
+            & $py -m pip install --no-warn-script-location spleeter
+            if ($LASTEXITCODE -ne 0) { throw "pip install spleeter fallo con codigo $LASTEXITCODE" }
+            Write-Output "::notice::SPLEETER_INSTALL_OK"
+          } catch {
+            $errMsg = $_ | Out-String
+            $lines = ($errMsg -split "`r?`n" | Select-Object -Last 60)
+            $escaped = ($lines -join "%0A")
+            Write-Output "::error::SPLEETER_INSTALL_FAIL%0A$escaped"
+            exit 1
+          }
+
+      - name: Descargar y verificar modelo 4stems de Spleeter
+        shell: pwsh
+        run: |
+          try {
+            $url = "https://github.com/deezer/spleeter/releases/download/v1.4.0/4stems.tar.gz"
+            $dest = "models-download/4stems.tar.gz"
+            New-Item -ItemType Directory -Force -Path "models-download" | Out-Null
+            Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing
+            $hash = (Get-FileHash -Path $dest -Algorithm SHA256).Hash.ToLower()
+            $size = (Get-Item $dest).Length
+            Write-Output "::notice::SPLEETER_4STEMS_HASH sha256=$hash size=$size url=$url"
+            New-Item -ItemType Directory -Force -Path "legal/models/spleeter/4stems" | Out-Null
+            tar -xzf $dest -C "legal/models/spleeter/4stems"
+          } catch {
+            $errMsg = $_ | Out-String
+            $lines = ($errMsg -split "`r?`n" | Select-Object -Last 40)
+            $escaped = ($lines -join "%0A")
+            Write-Output "::error::MODEL_DOWNLOAD_FAIL%0A$escaped"
+            exit 1
+          }
+
+      - name: Subir modelo Spleeter descargado como artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: spleeter-4stems-model
+          path: legal/models/spleeter/4stems/
+          retention-days: 14
+
       - name: Verificar arquitectura de binarios (x64)
         run: |
           echo "Pendiente: scripts/Verify-BinaryArchitecture.ps1"

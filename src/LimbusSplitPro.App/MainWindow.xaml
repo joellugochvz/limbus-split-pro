@@ -1,20 +1,292 @@
 <Window x:Class="LimbusSplitPro.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:LimbusSplitPro.App"
         Title="Limbus Split Pro"
-        MinWidth="960" MinHeight="600"
+        MinWidth="1000" MinHeight="640" Width="1180" Height="760"
+        Background="{StaticResource BackgroundBrush}"
         FontFamily="{StaticResource AppFontFamily}">
-    <!--
-      Andamiaje mínimo. La composición final de panel izquierdo/derecho (sección 18)
-      se implementa junto con el mockup visual pendiente de aprobación, para no fijar
-      un layout definitivo antes de acordar la identidad visual.
-    -->
-    <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="360" />
-            <ColumnDefinition Width="*" />
-        </Grid.ColumnDefinitions>
-        <TextBlock Grid.Column="0" Text="Panel izquierdo: mezcla, qué extraer, carpeta" Margin="16" TextWrapping="Wrap" />
-        <TextBlock Grid.Column="1" Text="Panel derecho: resultado, reproductor, mezclador" Margin="16" TextWrapping="Wrap" />
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+
+        <!-- Tarjeta de instrumento del selector "Qué extraer" (sección 5) -->
+        <Style x:Key="StemCardStyle" TargetType="ToggleButton">
+            <Setter Property="Padding" Value="12" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="CardBorder"
+                                Background="{StaticResource CardBackgroundBrush}"
+                                BorderBrush="{StaticResource CardBorderBrush}"
+                                BorderThickness="1.5" CornerRadius="10" Padding="12,10">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="{Binding IconGlyph}" FontFamily="Segoe Fluent Icons"
+                                           FontSize="18" VerticalAlignment="Top" Margin="0,0,10,0"
+                                           Foreground="{StaticResource AccentBrush}" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="14"
+                                               Foreground="{StaticResource TextPrimaryBrush}" />
+                                    <TextBlock Text="{Binding Subtitle}" FontSize="11.5" TextWrapping="Wrap"
+                                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" />
+                                </StackPanel>
+                                <Ellipse Grid.Column="2" Width="18" Height="18" VerticalAlignment="Top"
+                                         Fill="{StaticResource AccentBrush}"
+                                         Visibility="{Binding IsSelected, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource BoolToVis}}" />
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="CardBorder" Property="BorderBrush" Value="{StaticResource AccentSelectedBorderBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="CardBorder" Property="Background" Value="{StaticResource DisabledOverlayBrush}" />
+                                <Setter Property="Opacity" Value="0.55" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PillButtonStyle" TargetType="Button">
+            <Setter Property="Padding" Value="12,5" />
+            <Setter Property="Background" Value="{StaticResource CardBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="14" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PrimaryActionButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource PrimaryButtonBrush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Padding" Value="0,12" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="10" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.45" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Window.DataContext>
+        <local:MainViewModel />
+    </Window.DataContext>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Cabecera: logo, nombre, procesamiento local (sección 3) -->
+        <Border Grid.Row="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="12"
+                Padding="16,12" Margin="0,0,0,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal">
+                    <Border Width="40" Height="40" CornerRadius="9" Background="{StaticResource PrimaryButtonBrush}" Margin="0,0,10,0">
+                        <TextBlock Text="&#xE71E;" FontFamily="Segoe Fluent Icons" Foreground="{StaticResource AccentBrush}"
+                                   FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock FontSize="16" FontWeight="Bold">
+                            <Run Text="LIMBUS " Foreground="{StaticResource AccentBrush}" />
+                            <Run Text="SPLIT PRO" Foreground="{StaticResource TextPrimaryBrush}" />
+                        </TextBlock>
+                        <TextBlock Text="Separación multipista local" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" />
+                    </StackPanel>
+                </StackPanel>
+                <Border Grid.Column="1" Background="{StaticResource DisabledOverlayBrush}" CornerRadius="14" Padding="10,5" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE72E;" FontFamily="Segoe Fluent Icons" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <TextBlock Text="PROCESAMIENTO LOCAL" FontSize="10.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- Cuerpo: panel izquierdo (mezcla/qué extraer/carpeta) + panel derecho (resultado/mezclador) -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="420" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- ===== PANEL IZQUIERDO ===== -->
+            <Border Grid.Column="0" Background="{StaticResource CardBackgroundBrush}" CornerRadius="12" Padding="18">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="01 · MEZCLA" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8" />
+                        <Border BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1.5" CornerRadius="10"
+                                Padding="20" Background="{StaticResource DisabledOverlayBrush}">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="&#xE720;" FontFamily="Segoe Fluent Icons" FontSize="22" HorizontalAlignment="Center"
+                                           Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8" />
+                                <TextBlock Text="Suelta aquí tu mezcla" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                <TextBlock Text="WAV, AIFF, MP3 o FLAC" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
+                                           HorizontalAlignment="Center" Margin="0,2,0,10" />
+                                <Button Content="Elegir archivo" Style="{StaticResource PillButtonStyle}"
+                                        Command="{Binding ChooseFileCommand}" HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Text="Aún no hay archivo cargado." FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
+                                   TextWrapping="Wrap" Margin="0,8,0,0"
+                                   Visibility="{Binding HasNoLoadedFile, Converter={StaticResource BoolToVis}}" />
+
+                        <Separator Margin="0,16" Opacity="0.4" />
+
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="02 · QUÉ EXTRAER" FontSize="11" FontWeight="Bold"
+                                       Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                <Button Content="Todas" Style="{StaticResource PillButtonStyle}" Padding="10,3"
+                                        Command="{Binding SelectAllCommand}" Margin="0,0,6,0" />
+                                <Button Content="Ninguna" Style="{StaticResource PillButtonStyle}" Padding="10,3"
+                                        Command="{Binding SelectNoneCommand}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <ItemsControl ItemsSource="{Binding StemOptions}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="2" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <ToggleButton Style="{StaticResource StemCardStyle}"
+                                                  IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                  IsEnabled="{Binding IsAvailable}"
+                                                  ToolTip="{Binding UnavailableReason}"
+                                                  Margin="0,0,6,6" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <Border Background="{StaticResource DisabledOverlayBrush}" CornerRadius="8" Padding="10" Margin="0,10,0,0">
+                            <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}">
+                                <Run Text="&#x2699; " FontFamily="Segoe Fluent Icons" />
+                                <Run Text="&quot;Other&quot; reúne lo no seleccionado. Las categorías deshabilitadas no tienen todavía un modelo con licencia comercial verificada (ver docs/01-modelos-licencias.md)." />
+                            </TextBlock>
+                        </Border>
+
+                        <Separator Margin="0,16" Opacity="0.4" />
+
+                        <TextBlock Text="03 · CARPETA DE TRABAJO" FontSize="11" FontWeight="Bold"
+                                   Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8" />
+                        <Border BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="10">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="&#xE8B7;" FontFamily="Segoe Fluent Icons" FontSize="16"
+                                           VerticalAlignment="Center" Margin="0,0,10,0" Foreground="{StaticResource AccentBrush}" />
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding WorkingFolderPath, TargetNullValue='Sin seleccionar', FallbackValue='Sin seleccionar'}"
+                                               FontSize="12" TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                                <Button Grid.Column="2" Content="Cambiar" Style="{StaticResource PillButtonStyle}"
+                                        Command="{Binding ChooseFolderCommand}" />
+                            </Grid>
+                        </Border>
+
+                        <Button Content="{Binding SeparateButtonLabel}" Style="{StaticResource PrimaryActionButtonStyle}"
+                                Command="{Binding SeparateCommand}" Margin="0,18,0,0" />
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+
+            <!-- ===== PANEL DERECHO ===== -->
+            <Border Grid.Column="2" Background="{StaticResource CardBackgroundBrush}" CornerRadius="12" Padding="18">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Margin="0,0,0,12">
+                        <TextBlock Text="RESULTADO" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" />
+                        <TextBlock Text="{Binding StatusMessage}" FontSize="19" FontWeight="SemiBold" TextWrapping="Wrap"
+                                   Foreground="{StaticResource TextPrimaryBrush}" Margin="0,2,0,0" />
+                    </StackPanel>
+
+                    <Grid Grid.Row="1">
+                        <!-- Estado vacío: todavía no hay pistas generadas (build sin backend instalado) -->
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
+                                    Visibility="{Binding HasNoTracks, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="&#xE993;" FontFamily="Segoe Fluent Icons" FontSize="34" HorizontalAlignment="Center"
+                                       Foreground="{StaticResource TextSecondaryBrush}" Opacity="0.5" Margin="0,0,0,10" />
+                            <TextBlock Text="Las pistas WAV aparecerán aquí al terminar." FontSize="12"
+                                       Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" />
+                        </StackPanel>
+
+                        <!-- Lista de pistas del mezclador (sección 16), se llena cuando haya separación real -->
+                        <ListBox ItemsSource="{Binding Tracks}" BorderThickness="0" Background="Transparent">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="0,0,0,1" Padding="0,10">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="140" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="{Binding IconGlyph}" FontFamily="Segoe Fluent Icons"
+                                                       VerticalAlignment="Center" Margin="0,0,10,0" Foreground="{StaticResource AccentBrush}" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center" FontWeight="SemiBold" />
+                                            <ToggleButton Grid.Column="2" Content="M" Width="28" IsChecked="{Binding IsMuted}" Margin="4,0" />
+                                            <ToggleButton Grid.Column="3" Content="S" Width="28" IsChecked="{Binding IsSolo}" Margin="4,0" />
+                                            <Slider Grid.Column="4" Minimum="0" Maximum="100" Value="{Binding VolumePercent}" VerticalAlignment="Center" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
     </Grid>
 </Window>

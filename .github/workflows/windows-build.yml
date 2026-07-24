@@ -29,8 +29,9 @@ jobs:
           $output = dotnet test tests/LimbusSplitPro.Tests/LimbusSplitPro.Tests.csproj -c Release --no-build 2>&1 | Out-String
           Write-Host $output
           if ($LASTEXITCODE -ne 0) {
-            $summary = ($output -split "`n" | Select-Object -Last 60) -join "`n"
-            Write-Output "::error::TEST_FAILURE_SUMMARY_START`n$summary`nTEST_FAILURE_SUMMARY_END"
+            $lines = ($output -split "`r?`n" | Select-Object -Last 50)
+            $escaped = ($lines -join "%0A")
+            Write-Output "::error::TESTFAIL%0A$escaped"
             exit $LASTEXITCODE
           }
 

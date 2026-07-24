@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using LimbusSplitPro.Audio;
+using LimbusSplitPro.Engine;
 using Microsoft.Win32;
 
 namespace LimbusSplitPro.App;
@@ -18,6 +19,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public ObservableCollection<TrackChannelViewModel> Tracks { get; } = new();
     public bool HasTracks => Tracks.Count > 0;
     public bool HasNoTracks => !HasTracks;
+
+    private string? _loadedFilePath;
 
     private string? _loadedFileName;
     public string? LoadedFileName
@@ -111,12 +114,67 @@ public sealed class MainViewModel : INotifyPropertyChanged
             }
         });
 
-        // TODO (siguiente commit): invocar LimbusSplitPro.Engine.EngineProcessClient
-        // contra un backend autorizado del manifiesto (hoy no hay ninguno instalado).
-        SeparateCommand = new RelayCommand(_ =>
+        SeparateCommand = new RelayCommand(async _ => await ExecuteSeparateAsync(),
+            _ => HasLoadedFile && StemOptions.Any(s => s.IsSelected) && HasWorkingFolder && !IsProcessing);
+    }
+
+    /// <summary>
+    /// Invoca el motor Python real como proceso hijo (LimbusSplitPro.Engine). Hoy termina
+    /// en un error controlado (MODEL_NOT_AUTHORIZED) porque no hay ningun modelo instalado
+    /// y verificado todavia en esta build de desarrollo - eso es el comportamiento correcto
+    /// y esperado (fail-closed, seccion 7), no un bug.
+    /// </summary>
+    private async Task ExecuteSeparateAsync()
+    {
+        var baseDir = AppContext.BaseDirectory;
+        var pythonHome = Path.Combine(baseDir, "runtime", "python-embed", "dist");
+        var enginePath = Path.Combine(pythonHome, "python.exe");
+        var enginePyPath = Path.Combine(baseDir, "engine-py");
+
+        if (!File.Exists(enginePath))
         {
-            StatusMessage = "Separación real pendiente: no hay todavía un backend de modelos instalado y verificado en esta build.";
-        }, _ => HasLoadedFile && StemOptions.Any(s => s.IsSelected) && HasWorkingFolder);
+            StatusMessage = "Runtime Python no encontrado junto al ejecutable (runtime/python-embed/dist/python.exe). " +
+                             "Esta build de desarrollo todavia no lo incluye empaquetado.";
+            return;
+        }
+
+        IsProcessing = true;
+        StatusMessage = "Iniciando el motor de separación...";
+
+        try
+        {
+            var request = new SeparationJobRequest
+            {
+                InputFilePath = _loadedFilePath ?? "",
+                OutputFolderPath = WorkingFolderPath,
+                RequestedStems = StemOptions.Where(s => s.IsSelected).Select(s => s.Id).ToList(),
+                Device = "auto",
+            };
+
+            await using var client = new EngineProcessClient(enginePath, pythonHome, enginePyPath);
+            await foreach (var evt in client.RunAsync(request, CancellationToken.None))
+            {
+                StatusMessage = evt.Event switch
+                {
+                    "stage" => $"Etapa: {evt.Stage}",
+                    "progress" => $"Procesando... {evt.Pct:0}%",
+                    "error" => $"No se pudo separar: {evt.Message} (código: {evt.ErrorCode})",
+                    "result" => "Separación completada.",
+                    "cancelled" => "Separación cancelada.",
+                    _ => StatusMessage,
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            // Frontera del proceso hijo: cualquier fallo de arranque (ej. python.exe corrupto,
+            // permiso denegado) se traduce a un mensaje comprensible, nunca a una traza cruda.
+            StatusMessage = $"No se pudo iniciar el motor de separación: {ex.Message}";
+        }
+        finally
+        {
+            IsProcessing = false;
+        }
     }
 
     /// <summary>
@@ -130,6 +188,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         try
         {
             var info = AudioFileInspector.Inspect(filePath);
+            _loadedFilePath = filePath;
             LoadedFileName = info.FileName;
             LoadedFileInfo = $"{info.Format} · {info.Duration:m\\:ss} · {info.SampleRate} Hz · " +
                               (info.Channels == 1 ? "Mono" : info.Channels == 2 ? "Estéreo" : $"{info.Channels} canales");
@@ -138,6 +197,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         catch (AudioInspectionException ex)
         {
             // Mensaje comprensible, sin traza técnica cruda (sección 18/22 del encargo).
+            _loadedFilePath = null;
             LoadedFileName = null;
             StatusMessage = ex.ErrorCode switch
             {

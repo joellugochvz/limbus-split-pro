@@ -18,7 +18,12 @@
 #>
 
 param(
-    [string]$PythonVersion = "3.11.14",
+    # 3.11.12 (abril 2025) es la ultima release de la rama 3.11 que publica
+    # binarios/embeddable de Windows. Desde 3.11.13 en adelante, python.org solo
+    # distribuye el codigo fuente (la rama entro en fase de solo parches de
+    # seguridad antes de su EOL de octubre 2026). Verificado contra el indice
+    # real de https://www.python.org/ftp/python/ el 2026-07-24.
+    [string]$PythonVersion = "3.11.12",
     [string]$OutputDir = "$PSScriptRoot\dist"
 )
 

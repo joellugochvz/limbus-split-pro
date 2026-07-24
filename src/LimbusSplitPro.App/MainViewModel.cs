@@ -1,16 +1,16 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using LimbusSplitPro.Audio;
+using Microsoft.Win32;
 
 namespace LimbusSplitPro.App;
 
 /// <summary>
-/// ViewModel principal. En este commit gestiona el estado de la UI (selección de stems,
-/// carpeta de trabajo, lista de pistas del mezclador) con datos de ejemplo/placeholder.
-/// La conexión real con LimbusSplitPro.Engine (proceso Python) y LimbusSplitPro.Audio
-/// (mezclador WASAPI) es el siguiente paso: hoy los botones "Separar" y "Exportar" no
-/// ejecutan separación real todavía, para no simular una función que no existe (ver
-/// docs/01-modelos-licencias.md y el propio encargo, sección "no simules capacidades").
+/// ViewModel principal. Diálogos nativos (OpenFileDialog / OpenFolderDialog) y lectura
+/// real de metadatos de audio ya están conectados. La separación real (motor Python) y
+/// la reproducción multipista (MultiTrackMixer) siguen pendientes: no hay todavía un
+/// backend de modelos instalado y verificado en esta build (ver docs/01-modelos-licencias.md).
 /// </summary>
 public sealed class MainViewModel : INotifyPropertyChanged
 {
@@ -77,7 +77,6 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public MainViewModel()
     {
         SeedStemOptions();
-        SeedTracksPlaceholder();
 
         SelectAllCommand = new RelayCommand(_ =>
         {
@@ -88,17 +87,28 @@ public sealed class MainViewModel : INotifyPropertyChanged
             foreach (var s in StemOptions) s.IsSelected = false;
         });
 
-        // TODO (siguiente commit): conectar con un OpenFileDialog nativo real y
-        // con LimbusSplitPro.Audio para leer duración/sample rate/canales reales.
         ChooseFileCommand = new RelayCommand(_ =>
         {
-            StatusMessage = "Selección de archivo: pendiente de conectar diálogo nativo real.";
+            var dialog = new OpenFileDialog
+            {
+                Title = "Elegir mezcla",
+                Filter = "Audio (*.wav;*.aiff;*.aif;*.mp3;*.flac)|*.wav;*.aiff;*.aif;*.mp3;*.flac|Todos los archivos|*.*",
+                CheckFileExists = true,
+            };
+            if (dialog.ShowDialog() == true)
+                LoadFile(dialog.FileName);
         });
 
-        // TODO (siguiente commit): FolderPicker nativo real (sección 4, punto 4).
         ChooseFolderCommand = new RelayCommand(_ =>
         {
-            StatusMessage = "Selección de carpeta: pendiente de conectar FolderPicker nativo real.";
+            // OpenFolderDialog es la API nativa de FolderPicker desde .NET 8 en WPF
+            // (sección 4, punto 4: "Elegir una carpeta de trabajo... mediante FolderPicker").
+            var dialog = new OpenFolderDialog { Title = "Elegir carpeta de trabajo y exportación" };
+            if (dialog.ShowDialog() == true)
+            {
+                WorkingFolderPath = dialog.FolderName;
+                HasWorkingFolder = true;
+            }
         });
 
         // TODO (siguiente commit): invocar LimbusSplitPro.Engine.EngineProcessClient
@@ -107,6 +117,37 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             StatusMessage = "Separación real pendiente: no hay todavía un backend de modelos instalado y verificado en esta build.";
         }, _ => HasLoadedFile && StemOptions.Any(s => s.IsSelected) && HasWorkingFolder);
+    }
+
+    /// <summary>
+    /// Carga y valida un archivo de audio real, ya sea desde el diálogo o desde
+    /// arrastrar-y-soltar (code-behind de MainWindow). Admite rutas con espacios,
+    /// Unicode y unidades distintas a C: porque no se manipulan como texto: se pasan
+    /// directo a File.Exists/AudioFileReader (sección 4).
+    /// </summary>
+    public void LoadFile(string filePath)
+    {
+        try
+        {
+            var info = AudioFileInspector.Inspect(filePath);
+            LoadedFileName = info.FileName;
+            LoadedFileInfo = $"{info.Format} · {info.Duration:m\\:ss} · {info.SampleRate} Hz · " +
+                              (info.Channels == 1 ? "Mono" : info.Channels == 2 ? "Estéreo" : $"{info.Channels} canales");
+            StatusMessage = "Elige qué quieres extraer";
+        }
+        catch (AudioInspectionException ex)
+        {
+            // Mensaje comprensible, sin traza técnica cruda (sección 18/22 del encargo).
+            LoadedFileName = null;
+            StatusMessage = ex.ErrorCode switch
+            {
+                AudioInspectionErrorCode.FileLocked => "No se pudo abrir: el archivo está en uso por otra aplicación.",
+                AudioInspectionErrorCode.PermissionDenied => "No se pudo abrir: permiso denegado para este archivo.",
+                AudioInspectionErrorCode.UnsupportedFormat => "Formato no compatible o archivo dañado.",
+                AudioInspectionErrorCode.FileNotFound => "El archivo ya no existe en esa ruta.",
+                _ => "No se pudo abrir el archivo.",
+            };
+        }
     }
 
     private void SeedStemOptions()
@@ -137,12 +178,6 @@ public sealed class MainViewModel : INotifyPropertyChanged
             UnavailableReason = "Solo disponible en htdemucs_6s, bloqueado por licencia de pesos no confirmada."
         });
         StemOptions.Add(new StemOption { Id = "piano", Title = "Piano y teclados", Subtitle = "Piano, órgano y teclas", IconGlyph = "\uE711" });
-    }
-
-    private void SeedTracksPlaceholder()
-    {
-        // Placeholder visual: se reemplaza por las pistas reales generadas por el motor
-        // cuando exista un backend instalado (LimbusSplitPro.Engine).
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

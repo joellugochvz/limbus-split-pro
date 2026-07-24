@@ -71,7 +71,7 @@ jobs:
             Write-Output "::error::PIP_BOOTSTRAP_FAIL%0A$escaped"
             exit 1
           }
-          $pipInstallOutput = & $py -m pip install --no-warn-script-location spleeter 2>&1 | Out-String
+          $pipInstallOutput = & $py -m pip install --no-warn-script-location "spleeter==2.4.2" 2>&1 | Out-String
           Write-Host $pipInstallOutput
           if ($LASTEXITCODE -ne 0) {
             $lines = ($pipInstallOutput -split "`r?`n" | Select-Object -Last 80)

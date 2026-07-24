@@ -24,7 +24,15 @@ jobs:
         run: dotnet build LimbusSplitPro.sln -c Release --no-restore
 
       - name: Unit + integration tests
-        run: dotnet test tests/LimbusSplitPro.Tests/LimbusSplitPro.Tests.csproj -c Release --no-build
+        shell: pwsh
+        run: |
+          $output = dotnet test tests/LimbusSplitPro.Tests/LimbusSplitPro.Tests.csproj -c Release --no-build 2>&1 | Out-String
+          Write-Host $output
+          if ($LASTEXITCODE -ne 0) {
+            $summary = ($output -split "`n" | Select-Object -Last 60) -join "`n"
+            Write-Output "::error::TEST_FAILURE_SUMMARY_START`n$summary`nTEST_FAILURE_SUMMARY_END"
+            exit $LASTEXITCODE
+          }
 
       - name: Verificar arquitectura de binarios (x64)
         run: |

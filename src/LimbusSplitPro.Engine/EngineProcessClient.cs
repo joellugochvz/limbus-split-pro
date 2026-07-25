@@ -25,17 +25,25 @@ public sealed class EngineProcessClient : IAsyncDisposable
     private readonly string _enginePath;
     private readonly string _pythonHome;
     private readonly string _enginePyPath;
+    private readonly string _manifestPath;
+    private readonly string _modelsDir;
     private Process? _process;
 
     /// <param name="enginePath">Ruta a python.exe dentro del runtime embebido.</param>
     /// <param name="pythonHome">Carpeta raíz del runtime Python embebido (PYTHONHOME).</param>
     /// <param name="enginePyPath">Carpeta que contiene el paquete limbus_engine (engine-py/),
     /// pasada como PYTHONPATH ya que el runtime embebido no lo trae instalado.</param>
-    public EngineProcessClient(string enginePath, string pythonHome, string enginePyPath)
+    /// <param name="manifestPath">Ruta a legal/model-manifest.json (verificación fail-closed).</param>
+    /// <param name="modelsDir">Carpeta que contiene los modelos descargados y verificados
+    /// (ej. legal/models/, que a su vez contiene spleeter/4stems).</param>
+    public EngineProcessClient(string enginePath, string pythonHome, string enginePyPath,
+        string manifestPath, string modelsDir)
     {
         _enginePath = enginePath;
         _pythonHome = pythonHome;
         _enginePyPath = enginePyPath;
+        _manifestPath = manifestPath;
+        _modelsDir = modelsDir;
     }
 
     public async IAsyncEnumerable<EngineEvent> RunAsync(
@@ -61,6 +69,8 @@ public sealed class EngineProcessClient : IAsyncDisposable
         psi.EnvironmentVariables["PYTHONNOUSERSITE"] = "1";
         psi.EnvironmentVariables["PYTHONIOENCODING"] = "utf-8";
         psi.EnvironmentVariables["PYTHONPATH"] = _enginePyPath;
+        psi.EnvironmentVariables["LIMBUS_MANIFEST_PATH"] = _manifestPath;
+        psi.EnvironmentVariables["LIMBUS_MODELS_DIR"] = _modelsDir;
 
         _process = new Process { StartInfo = psi, EnableRaisingEvents = true };
         _process.Start();

@@ -1,21 +1,21 @@
 {
   "schemaVersion": "1.0",
   "buildType": "development",
-  "_comment": "PLACEHOLDER. sha256 y expectedSizeBytes deben rellenarse al descargar y verificar los pesos reales en Windows. Ningún hash aquí es real todavía.",
+  "_comment": "El modelo spleeter-4stems tiene hash y tamano REALES, verificados en un runner Windows real de GitHub Actions (2026-07-25). htdemucs sigue bloqueado por licencia de pesos no confirmada (ver docs/01-modelos-licencias.md).",
   "models": [
     {
       "id": "spleeter-4stems",
       "relativePath": "models/spleeter/4stems",
-      "sha256": "0000000000000000000000000000000000000000000000000000000000000",
-      "expectedSizeBytes": 0,
-      "version": "PENDIENTE-DE-DESCARGA-Y-HASH-REAL",
-      "origin": "https://github.com/deezer/spleeter",
+      "sha256": "3adb4a50ad4eb18c7c4d65fcf4cf2367a07d48408a5eb7d03cd20067429dfaa8",
+      "expectedSizeBytes": 146308147,
+      "version": "v1.4.0",
+      "origin": "https://github.com/deezer/spleeter/releases/download/v1.4.0/4stems.tar.gz",
       "codeLicense": "MIT",
       "weightsLicense": "MIT",
       "licenseEvidenceUrl": "https://github.com/deezer/spleeter/blob/master/LICENSE",
       "author": "Deezer Research",
       "attribution": "Spleeter (c) Deezer, MIT License",
-      "capabilities": ["voz_principal", "bateria_completa", "bajo", "other"],
+      "capabilities": ["voces", "voz_principal", "bateria", "bajo", "other"],
       "redistributionAuthorized": true,
       "commercialUseAuthorized": true
     },

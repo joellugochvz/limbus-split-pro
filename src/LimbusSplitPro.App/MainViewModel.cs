@@ -131,6 +131,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
         var pythonHome = Path.Combine(baseDir, "runtime", "python-embed", "dist");
         var enginePath = Path.Combine(pythonHome, "python.exe");
         var enginePyPath = Path.Combine(baseDir, "engine-py");
+        var manifestPath = Path.Combine(baseDir, "legal", "model-manifest.json");
+        var modelsDir = Path.Combine(baseDir, "legal", "models");
 
         if (!File.Exists(enginePath))
         {
@@ -152,7 +154,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 Device = "auto",
             };
 
-            await using var client = new EngineProcessClient(enginePath, pythonHome, enginePyPath);
+            await using var client = new EngineProcessClient(enginePath, pythonHome, enginePyPath, manifestPath, modelsDir);
             await foreach (var evt in client.RunAsync(request, CancellationToken.None))
             {
                 StatusMessage = evt.Event switch
@@ -215,9 +217,33 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         StemOptions.Add(new StemOption { Id = "voces", Title = "Voces", Subtitle = "Base para voz detallada", IconGlyph = "\uE720" });
         StemOptions.Add(new StemOption { Id = "voz_principal", Title = "Voz principal", Subtitle = "Voz al frente", IconGlyph = "\uE720" });
-        StemOptions.Add(new StemOption { Id = "coros", Title = "Coros y segundas", Subtitle = "Armonías y dobles", IconGlyph = "\uE716" });
-        StemOptions.Add(new StemOption { Id = "efectos_vocales", Title = "Efectos vocales", Subtitle = "Reverb y cola vocal", IconGlyph = "\uE71E" });
-        StemOptions.Add(new StemOption { Id = "ruido", Title = "Ruido", Subtitle = "Fondo y artefactos", IconGlyph = "\uE7F3" });
+        StemOptions.Add(new StemOption
+        {
+            Id = "coros",
+            Title = "Coros y segundas",
+            Subtitle = "Armonías y dobles",
+            IconGlyph = "\uE716",
+            IsAvailable = false,
+            UnavailableReason = "El modelo instalado (Spleeter 4stems) no distingue voz principal de coros."
+        });
+        StemOptions.Add(new StemOption
+        {
+            Id = "efectos_vocales",
+            Title = "Efectos vocales",
+            Subtitle = "Reverb y cola vocal",
+            IconGlyph = "\uE71E",
+            IsAvailable = false,
+            UnavailableReason = "Sin modelo con licencia comercial verificada para esta separación."
+        });
+        StemOptions.Add(new StemOption
+        {
+            Id = "ruido",
+            Title = "Ruido",
+            Subtitle = "Fondo y artefactos",
+            IconGlyph = "\uE7F3",
+            IsAvailable = false,
+            UnavailableReason = "Sin modelo con licencia comercial verificada para esta separación."
+        });
         StemOptions.Add(new StemOption { Id = "bateria", Title = "Batería", Subtitle = "Bombo, caja, toms y platos", IconGlyph = "\uE7C4" });
         StemOptions.Add(new StemOption
         {
@@ -238,7 +264,15 @@ public sealed class MainViewModel : INotifyPropertyChanged
             IsAvailable = false,
             UnavailableReason = "Solo disponible en htdemucs_6s, bloqueado por licencia de pesos no confirmada."
         });
-        StemOptions.Add(new StemOption { Id = "piano", Title = "Piano y teclados", Subtitle = "Piano, órgano y teclas", IconGlyph = "\uE711" });
+        StemOptions.Add(new StemOption
+        {
+            Id = "piano",
+            Title = "Piano y teclados",
+            Subtitle = "Piano, órgano y teclas",
+            IconGlyph = "\uE711",
+            IsAvailable = false,
+            UnavailableReason = "Requiere el modelo Spleeter 5stems, todavía no instalado ni verificado."
+        });
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

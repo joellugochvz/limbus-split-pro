@@ -133,6 +133,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         var enginePyPath = Path.Combine(baseDir, "engine-py");
         var manifestPath = Path.Combine(baseDir, "legal", "model-manifest.json");
         var modelsDir = Path.Combine(baseDir, "legal", "models");
+        var ffmpegDir = Path.Combine(baseDir, "runtime", "ffmpeg");
 
         if (!File.Exists(enginePath))
         {
@@ -144,6 +145,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
         IsProcessing = true;
         StatusMessage = "Iniciando el motor de separación...";
 
+        // Límite de tiempo real: un cuelgue silencioso de horas (observado en pruebas reales)
+        // ya no es aceptable. 20 minutos es generoso para una canción normal en CPU; si se
+        // agota, se cancela con un mensaje claro en vez de quedar "Separando..." para siempre.
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(20));
+
         try
         {
             var request = new SeparationJobRequest
@@ -154,19 +160,27 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 Device = "auto",
             };
 
-            await using var client = new EngineProcessClient(enginePath, pythonHome, enginePyPath, manifestPath, modelsDir);
-            await foreach (var evt in client.RunAsync(request, CancellationToken.None))
+            await using var client = new EngineProcessClient(enginePath, pythonHome, enginePyPath, manifestPath, modelsDir, ffmpegDir);
+            await foreach (var evt in client.RunAsync(request, timeoutCts.Token))
             {
                 StatusMessage = evt.Event switch
                 {
                     "stage" => $"Etapa: {evt.Stage}",
                     "progress" => $"Procesando... {evt.Pct:0}%",
+                    // heartbeat: señal de actividad real del motor (derivada de su log técnico),
+                    // para que la UI nunca se quede estática sin ningún indicio de progreso.
+                    "heartbeat" => $"Trabajando... ({evt.Message})",
                     "error" => $"No se pudo separar: {evt.Message} (código: {evt.ErrorCode})",
                     "result" => "Separación completada.",
                     "cancelled" => "Separación cancelada.",
                     _ => StatusMessage,
                 };
             }
+        }
+        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested)
+        {
+            StatusMessage = "Se canceló la separación: superó el tiempo máximo esperado (20 min) sin completarse. " +
+                             "Puede indicar un problema con el motor (ver logs técnicos).";
         }
         catch (Exception ex)
         {

@@ -136,6 +136,37 @@ jobs:
           path: legal/models/spleeter/4stems/
           retention-days: 14
 
+      - name: Descargar y verificar FFmpeg estatico (LGPL) para Windows
+        shell: pwsh
+        run: |
+          # Spleeter usa el binario ffmpeg por linea de comandos para leer/escribir audio.
+          # Sin el, el subproceso puede quedarse colgado indefinidamente sin ningun error
+          # visible (comportamiento real reportado en deezer/spleeter#819). Se usa la
+          # variante LGPL de BtbN/FFmpeg-Builds (no GPL, para no comprometer la
+          # redistribucion en una app de codigo cerrado - seccion 12/13 del encargo).
+          try {
+            $url = "https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-win64-lgpl.zip"
+            $dest = "ffmpeg-download.zip"
+            Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing
+            $hash = (Get-FileHash -Path $dest -Algorithm SHA256).Hash.ToLower()
+            Write-Output "::notice::FFMPEG_HASH sha256=$hash url=$url"
+            Expand-Archive -Path $dest -DestinationPath "ffmpeg-extracted" -Force
+            $ffmpegExe = Get-ChildItem -Path "ffmpeg-extracted" -Recurse -Filter "ffmpeg.exe" | Select-Object -First 1
+            if (-not $ffmpegExe) { throw "No se encontro ffmpeg.exe dentro del archivo descargado." }
+            New-Item -ItemType Directory -Force -Path "runtime/ffmpeg" | Out-Null
+            Copy-Item -Force $ffmpegExe.FullName "runtime/ffmpeg/ffmpeg.exe"
+            # Licencia LGPL: copiar tambien el aviso de licencia incluido en el paquete.
+            $licenseFile = Get-ChildItem -Path "ffmpeg-extracted" -Recurse -Filter "LICENSE*" | Select-Object -First 1
+            if ($licenseFile) { Copy-Item -Force $licenseFile.FullName "runtime/ffmpeg/FFMPEG-LICENSE.txt" }
+            Write-Output "::notice::FFMPEG_OK"
+          } catch {
+            $errMsg = $_ | Out-String
+            $lines = ($errMsg -split "`r?`n" | Select-Object -Last 40)
+            $escaped = ($lines -join "%0A")
+            Write-Output "::error::FFMPEG_DOWNLOAD_FAIL%0A$escaped"
+            exit 1
+          }
+
       - name: Verificar arquitectura de binarios (x64)
         run: |
           echo "Pendiente: scripts/Verify-BinaryArchitecture.ps1"
@@ -164,6 +195,8 @@ jobs:
           New-Item -ItemType Directory -Force -Path publish/LimbusSplitPro/legal | Out-Null
           Copy-Item -Force legal/model-manifest.json publish/LimbusSplitPro/legal/model-manifest.json
           Copy-Item -Recurse -Force legal/models publish/LimbusSplitPro/legal/models
+          New-Item -ItemType Directory -Force -Path publish/LimbusSplitPro/runtime/ffmpeg | Out-Null
+          Copy-Item -Recurse -Force runtime/ffmpeg/* publish/LimbusSplitPro/runtime/ffmpeg/
 
       - name: Subir artefacto descargable
         uses: actions/upload-artifact@v4

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using System.Threading.Channels;
 
 namespace LimbusSplitPro.Engine;
 
@@ -27,6 +28,7 @@ public sealed class EngineProcessClient : IAsyncDisposable
     private readonly string _enginePyPath;
     private readonly string _manifestPath;
     private readonly string _modelsDir;
+    private readonly string? _ffmpegDir;
     private Process? _process;
 
     /// <param name="enginePath">Ruta a python.exe dentro del runtime embebido.</param>
@@ -36,14 +38,19 @@ public sealed class EngineProcessClient : IAsyncDisposable
     /// <param name="manifestPath">Ruta a legal/model-manifest.json (verificación fail-closed).</param>
     /// <param name="modelsDir">Carpeta que contiene los modelos descargados y verificados
     /// (ej. legal/models/, que a su vez contiene spleeter/4stems).</param>
+    /// <param name="ffmpegDir">Carpeta que contiene ffmpeg.exe empaquetado, agregada al PATH
+    /// del proceso hijo. Spleeter depende del binario ffmpeg para leer/escribir audio; sin
+    /// esto puede quedarse colgado indefinidamente sin ningún error visible (comportamiento
+    /// real reportado en deezer/spleeter#819) en vez de fallar con un mensaje claro.</param>
     public EngineProcessClient(string enginePath, string pythonHome, string enginePyPath,
-        string manifestPath, string modelsDir)
+        string manifestPath, string modelsDir, string? ffmpegDir = null)
     {
         _enginePath = enginePath;
         _pythonHome = pythonHome;
         _enginePyPath = enginePyPath;
         _manifestPath = manifestPath;
         _modelsDir = modelsDir;
+        _ffmpegDir = ffmpegDir;
     }
 
     public async IAsyncEnumerable<EngineEvent> RunAsync(
@@ -71,6 +78,11 @@ public sealed class EngineProcessClient : IAsyncDisposable
         psi.EnvironmentVariables["PYTHONPATH"] = _enginePyPath;
         psi.EnvironmentVariables["LIMBUS_MANIFEST_PATH"] = _manifestPath;
         psi.EnvironmentVariables["LIMBUS_MODELS_DIR"] = _modelsDir;
+        if (!string.IsNullOrEmpty(_ffmpegDir))
+        {
+            var currentPath = Environment.GetEnvironmentVariable("PATH") ?? "";
+            psi.EnvironmentVariables["PATH"] = _ffmpegDir + ";" + currentPath;
+        }
 
         _process = new Process { StartInfo = psi, EnableRaisingEvents = true };
         _process.Start();
@@ -80,36 +92,69 @@ public sealed class EngineProcessClient : IAsyncDisposable
         await _process.StandardInput.FlushAsync();
         _process.StandardInput.Close();
 
-        // stderr técnico se drena a un logger de archivo, nunca a la UI directamente.
-        _ = Task.Run(async () =>
+        // Canal compartido: unifica los eventos JSON reales de stdout con "latidos" derivados
+        // de stderr, para que la UI nunca se quede mostrando un mensaje estático sin ninguna
+        // señal de vida mientras el proceso trabaja (motivo real: un cuelgue de una hora sin
+        // ningún indicio observado en pruebas reales).
+        var channel = Channel.CreateUnbounded<EngineEvent>();
+
+        var stderrTask = Task.Run(async () =>
         {
             string? line;
             while ((line = await _process.StandardError.ReadLineAsync()) is not null)
+            {
                 EngineTechnicalLog.Write(line);
+                if (!string.IsNullOrWhiteSpace(line))
+                {
+                    await channel.Writer.WriteAsync(new EngineEvent { Event = "heartbeat", Message = line });
+                }
+            }
         }, ct);
 
-        while (!ct.IsCancellationRequested)
+        var stdoutTask = Task.Run(async () =>
         {
-            var line = await _process.StandardOutput.ReadLineAsync(ct);
-            if (line is null) break; // proceso terminó
-            EngineEvent? evt;
-            try
+            while (true)
             {
-                evt = JsonSerializer.Deserialize<EngineEvent>(line, JsonOptions);
+                string? line;
+                try
+                {
+                    line = await _process.StandardOutput.ReadLineAsync(ct);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                if (line is null) break; // proceso terminó
+
+                EngineEvent? evt;
+                try
+                {
+                    evt = JsonSerializer.Deserialize<EngineEvent>(line, JsonOptions);
+                }
+                catch (JsonException)
+                {
+                    // Una línea de stdout que no es JSON válido es un fallo del contrato IPC:
+                    // se registra como error técnico, nunca se muestra la traza cruda al usuario.
+                    EngineTechnicalLog.Write($"[IPC] Línea no-JSON inesperada en stdout: {line}");
+                    continue;
+                }
+                if (evt is not null) await channel.Writer.WriteAsync(evt, ct);
+                if (evt?.Event is "result" or "error" or "cancelled") break;
             }
-            catch (JsonException)
-            {
-                // Una línea de stdout que no es JSON válido es un fallo del contrato IPC:
-                // se registra como error técnico, nunca se muestra la traza cruda al usuario.
-                EngineTechnicalLog.Write($"[IPC] Línea no-JSON inesperada en stdout: {line}");
-                continue;
-            }
-            if (evt is not null) yield return evt;
-            if (evt?.Event is "result" or "error" or "cancelled") break;
+            channel.Writer.TryComplete();
+        }, ct);
+
+        await foreach (var evt in channel.Reader.ReadAllAsync(ct))
+        {
+            yield return evt;
+            if (evt.Event is "result" or "error" or "cancelled") break;
         }
 
         if (ct.IsCancellationRequested)
             await CancelAndCleanupAsync();
+
+        _ = stderrTask; // se deja correr hasta que el proceso cierre stderr; no bloquea la salida
+        _ = stdoutTask;
     }
 
     private async Task CancelAndCleanupAsync()

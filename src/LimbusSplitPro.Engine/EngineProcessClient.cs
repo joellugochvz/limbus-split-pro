@@ -68,7 +68,11 @@ public sealed class EngineProcessClient : IAsyncDisposable
         };
 
         // NUNCA concatenar argumentos como una sola cadena: se añaden uno a uno.
-        psi.ArgumentList.Add("-I"); // aislado: ignora variables de entorno de Python del usuario
+        // NOTA: NO se usa el flag "-I" (modo aislado) porque ese flag ignora
+        // PYTHONPATH a nivel del propio intérprete, sin importar el ._pth (bug real
+        // encontrado en pruebas: causaba "No module named limbus_engine" siempre).
+        // PYTHONNOUSERSITE + PYTHONHOME ya bastan para no depender del entorno del
+        // usuario ni de un Python instalado por fuera.
         psi.ArgumentList.Add("-m");
         psi.ArgumentList.Add("limbus_engine");
 

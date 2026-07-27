@@ -51,6 +51,45 @@ jobs:
             exit 1
           }
 
+      - name: Instalar y empaquetar DLLs del Visual C++ Redistributable
+        shell: pwsh
+        run: |
+          # numpy (y por extension tensorflow) fallan al importar en una maquina sin
+          # Visual Studio/VC++ Redistributable instalado, con "DLL load failed" (error
+          # real reportado en pruebas). El runtime embebido NO trae estas DLLs por
+          # diseno. Se instala el redistributable oficial de Microsoft en este runner
+          # (que aun no lo tiene por defecto para esta version) y se copian las DLLs
+          # resultantes junto a python.exe, para que el orden de busqueda de DLL de
+          # Windows las encuentre localmente sin requerir NINGUNA instalacion en la
+          # maquina del usuario final (seccion 23: "Arranque sin Visual Studio instalado").
+          try {
+            $url = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
+            Invoke-WebRequest -Uri $url -OutFile "vc_redist.x64.exe" -UseBasicParsing
+            $hash = (Get-FileHash -Path "vc_redist.x64.exe" -Algorithm SHA256).Hash.ToLower()
+            Write-Output "::notice::VCREDIST_HASH sha256=$hash url=$url"
+
+            Start-Process -FilePath ".c_redist.x64.exe" -ArgumentList "/install", "/quiet", "/norestart" -Wait -PassThru | Out-Null
+
+            $dllNames = @("vcruntime140.dll", "vcruntime140_1.dll", "msvcp140.dll", "concrt140.dll", "vccorlib140.dll")
+            $destDir = "runtime/python-embed/dist"
+            $copied = @()
+            foreach ($name in $dllNames) {
+              $found = Get-ChildItem -Path "C:\Windows\System32" -Filter $name -ErrorAction SilentlyContinue | Select-Object -First 1
+              if ($found) {
+                Copy-Item -Force $found.FullName (Join-Path $destDir $name)
+                $copied += $name
+              }
+            }
+            if ($copied.Count -eq 0) { throw "No se encontro ninguna DLL del VC++ Redistributable tras la instalacion." }
+            Write-Output "::notice::VCREDIST_DLLS_COPIED $($copied -join ', ')"
+          } catch {
+            $errMsg = $_ | Out-String
+            $lines = ($errMsg -split "`r?`n" | Select-Object -Last 40)
+            $escaped = ($lines -join "%0A")
+            Write-Output "::error::VCREDIST_FAIL%0A$escaped"
+            exit 1
+          }
+
       - name: Subir runtime Python embebido como artifact
         uses: actions/upload-artifact@v4
         with:

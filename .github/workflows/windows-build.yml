@@ -68,7 +68,7 @@ jobs:
             $hash = (Get-FileHash -Path "vc_redist.x64.exe" -Algorithm SHA256).Hash.ToLower()
             Write-Output "::notice::VCREDIST_HASH sha256=$hash url=$url"
 
-            Start-Process -FilePath ".c_redist.x64.exe" -ArgumentList "/install", "/quiet", "/norestart" -Wait -PassThru | Out-Null
+            Start-Process -FilePath "./vc_redist.x64.exe" -ArgumentList "/install", "/quiet", "/norestart" -Wait -PassThru | Out-Null
 
             $dllNames = @("vcruntime140.dll", "vcruntime140_1.dll", "msvcp140.dll", "concrt140.dll", "vccorlib140.dll")
             $destDir = "runtime/python-embed/dist"

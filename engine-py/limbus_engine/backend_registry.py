@@ -59,4 +59,12 @@ def resolve_backend(request: SeparationRequest) -> SeparationBackend:
             "en esta build. Revisa docs/01-modelos-licencias.md para el detalle de bloqueos."
         )
 
-    return SpleeterBackend(model_dir=models_dir)
+    # relativePath del manifiesto es "models/spleeter/4stems": SpleeterBackend espera
+    # la carpeta PADRE de "4stems" (equivalente al MODEL_PATH que usaria el propio
+    # downloader de Spleeter). Se deriva del manifiesto en vez de asumir un valor fijo,
+    # para no repetir el bug real encontrado en pruebas (buscaba en models/4stems en
+    # vez de models/spleeter/4stems).
+    relative_parent = Path(entry["relativePath"]).parent  # "models/spleeter" -> Path("models/spleeter")
+    spleeter_model_dir = str(Path(models_dir) / relative_parent.name)  # models_dir/"spleeter"
+
+    return SpleeterBackend(model_dir=spleeter_model_dir)

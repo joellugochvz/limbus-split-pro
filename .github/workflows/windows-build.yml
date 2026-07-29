@@ -252,6 +252,18 @@ jobs:
           New-Item -ItemType Directory -Force -Path publish/LimbusSplitPro/runtime/ffmpeg | Out-Null
           Copy-Item -Recurse -Force runtime/ffmpeg/* publish/LimbusSplitPro/runtime/ffmpeg/
 
+          # Diagnostico real: verificar si el DLL de OpenBLAS sobrevivio el Copy-Item -Recurse
+          # hacia la carpeta que se empaqueta. Esto aisla si el problema esta en este paso
+          # especifico o en el propio actions/upload-artifact / la descarga del usuario.
+          $publishedLibsDir = "publish/LimbusSplitPro/runtime/python-embed/dist/Lib/site-packages/numpy/.libs"
+          if (Test-Path $publishedLibsDir) {
+            $files = Get-ChildItem -Path $publishedLibsDir -File
+            $summary = ($files | ForEach-Object { "$($_.Name)=$($_.Length)bytes" }) -join ", "
+            Write-Output "::notice::NUMPY_LIBS_AFTER_COPY presente. Archivos: $summary"
+          } else {
+            Write-Output "::error::NUMPY_LIBS_AFTER_COPY la carpeta NO existe despues de Copy-Item -Recurse. El problema esta en este paso de copia."
+          }
+
       - name: Subir artefacto descargable
         uses: actions/upload-artifact@v4
         with:

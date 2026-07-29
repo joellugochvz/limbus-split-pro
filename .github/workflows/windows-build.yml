@@ -264,11 +264,23 @@ jobs:
             Write-Output "::error::NUMPY_LIBS_AFTER_COPY la carpeta NO existe despues de Copy-Item -Recurse. El problema esta en este paso de copia."
           }
 
+      - name: Comprimir el artefacto manualmente (evita bug conocido de actions/upload-artifact con carpetas ocultas como numpy\.libs)
+        shell: pwsh
+        run: |
+          Compress-Archive -Path publish/LimbusSplitPro/* -DestinationPath LimbusSplitPro-dev-build.zip -CompressionLevel Optimal
+          $zipEntry = [System.IO.Compression.ZipFile]::OpenRead("LimbusSplitPro-dev-build.zip").Entries |
+            Where-Object { $_.FullName -like "*numpy*.libs*openblas*" }
+          if ($zipEntry) {
+            Write-Output "::notice::ZIP_CONTAINS_OPENBLAS $($zipEntry.FullName) = $($zipEntry.Length) bytes"
+          } else {
+            Write-Output "::error::ZIP_MISSING_OPENBLAS El DLL de OpenBLAS tampoco quedo dentro del zip manual."
+          }
+
       - name: Subir artefacto descargable
         uses: actions/upload-artifact@v4
         with:
           name: LimbusSplitPro-dev-build
-          path: publish/LimbusSplitPro/
+          path: LimbusSplitPro-dev-build.zip
           retention-days: 14
 
       - name: Construir instalador (WiX v5)

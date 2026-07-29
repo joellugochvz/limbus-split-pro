@@ -147,6 +147,21 @@ jobs:
           }
           Write-Output "::notice::SPLEETER_INSTALL_OK"
 
+          # Diagnostico real: verificar si numpy\.libs (contiene el DLL de OpenBLAS,
+          # ~35MB) existe justo despues de instalar, ANTES de empaquetar nada. Esto
+          # distingue si el archivo nunca se genero (bug de instalacion en si) o si
+          # algo lo borra despues en la maquina del usuario final (ej. antivirus
+          # poniendo en cuarentena el DLL por falso positivo, problema real y
+          # documentado en el ecosistema numpy/scipy en Windows).
+          $libsDir = "runtime/python-embed/dist/Lib/site-packages/numpy/.libs"
+          if (Test-Path $libsDir) {
+            $files = Get-ChildItem -Path $libsDir -File
+            $summary = ($files | ForEach-Object { "$($_.Name)=$($_.Length)bytes" }) -join ", "
+            Write-Output "::notice::NUMPY_LIBS_CHECK presente. Archivos: $summary"
+          } else {
+            Write-Output "::error::NUMPY_LIBS_CHECK la carpeta numpy\.libs NO existe justo despues de instalar (antes de empaquetar). El problema es de instalacion, no del antivirus del usuario."
+          }
+
       - name: Descargar y verificar modelo 4stems de Spleeter
         shell: pwsh
         run: |

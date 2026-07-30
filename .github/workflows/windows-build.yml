@@ -207,8 +207,11 @@ jobs:
             Expand-Archive -Path $dest -DestinationPath "ffmpeg-extracted" -Force
             $ffmpegExe = Get-ChildItem -Path "ffmpeg-extracted" -Recurse -Filter "ffmpeg.exe" | Select-Object -First 1
             if (-not $ffmpegExe) { throw "No se encontro ffmpeg.exe dentro del archivo descargado." }
+            $ffprobeExe = Get-ChildItem -Path "ffmpeg-extracted" -Recurse -Filter "ffprobe.exe" | Select-Object -First 1
+            if (-not $ffprobeExe) { throw "No se encontro ffprobe.exe dentro del archivo descargado." }
             New-Item -ItemType Directory -Force -Path "runtime/ffmpeg" | Out-Null
             Copy-Item -Force $ffmpegExe.FullName "runtime/ffmpeg/ffmpeg.exe"
+            Copy-Item -Force $ffprobeExe.FullName "runtime/ffmpeg/ffprobe.exe"
             # Licencia LGPL: copiar tambien el aviso de licencia incluido en el paquete.
             $licenseFile = Get-ChildItem -Path "ffmpeg-extracted" -Recurse -Filter "LICENSE*" | Select-Object -First 1
             if ($licenseFile) { Copy-Item -Force $licenseFile.FullName "runtime/ffmpeg/FFMPEG-LICENSE.txt" }

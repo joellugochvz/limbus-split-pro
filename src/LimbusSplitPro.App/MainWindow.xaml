@@ -268,6 +268,24 @@
                         <TextBlock Text="RESULTADO" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" />
                         <TextBlock Text="{Binding StatusMessage}" FontSize="19" FontWeight="SemiBold" TextWrapping="Wrap"
                                    Foreground="{StaticResource TextPrimaryBrush}" Margin="0,2,0,0" />
+
+                        <!-- Reproductor general (sección 14-15): solo visible con pistas cargadas -->
+                        <Grid Margin="0,12,0,0" Visibility="{Binding HasTracks, Converter={StaticResource BoolToVis}}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" Content="{Binding PlayPauseLabel}" Style="{StaticResource PillButtonStyle}"
+                                    Command="{Binding PlayPauseCommand}" Margin="0,0,6,0" />
+                            <Button Grid.Column="1" Content="Stop" Style="{StaticResource PillButtonStyle}"
+                                    Command="{Binding StopCommand}" Margin="0,0,10,0" />
+                            <TextBlock Grid.Column="3" VerticalAlignment="Center" FontSize="12"
+                                       Foreground="{StaticResource TextSecondaryBrush}">
+                                <Run Text="{Binding PositionText}" /><Run Text=" / " /><Run Text="{Binding DurationText}" />
+                            </TextBlock>
+                        </Grid>
                     </StackPanel>
 
                     <Grid Grid.Row="1">

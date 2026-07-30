@@ -68,8 +68,11 @@ class SpleeterBackend(SeparationBackend):
                 filename_format="{instrument}.wav",
             )
 
-            base_name = Path(request.input_file_path).stem
-            raw_dir = Path(tmp) / base_name
+            # filename_format="{instrument}.wav" (sin "{filename}/") le dice a Spleeter
+            # que escriba directo en tmp/, sin la subcarpeta con el nombre de la canción
+            # que usa por defecto. raw_dir es tmp directamente (bug real encontrado en
+            # pruebas: antes se asumía la subcarpeta que este mismo override desactiva).
+            raw_dir = Path(tmp)
 
             yield {"event": "stage", "stage": "reading_stems"}
             raw_audio = {name: read_wav(raw_dir / f"{name}.wav") for name in RAW_STEM_NAMES}

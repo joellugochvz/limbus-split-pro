@@ -66,6 +66,13 @@ public sealed class MultiTrackMixer : IDisposable
     public void Pause() => _output.Pause(); // no reinicia posición
     public void Stop() => _output.Stop();   // semántica clara: detiene y libera el dispositivo
 
+    public PlaybackState PlaybackState => _output.PlaybackState;
+
+    /// <summary>Posición/duración de referencia (todas las pistas comparten la misma línea
+    /// temporal, se usa la primera pista añadida). Vacío si no hay pistas cargadas.</summary>
+    public TimeSpan CurrentPosition => _tracks.Count > 0 ? _tracks[0].CurrentTime : TimeSpan.Zero;
+    public TimeSpan TotalDuration => _tracks.Count > 0 ? _tracks[0].TotalTime : TimeSpan.Zero;
+
     /// <summary>Seek con crossfade corto para evitar rebote/doble ataque/silencio perceptible.</summary>
     public void Seek(TimeSpan position)
     {
@@ -121,6 +128,14 @@ public sealed class TrackChannel : IDisposable
         if (_underlyingReader is AudioFileReader reader)
             reader.CurrentTime = position; // TODO: aplicar crossfade de unos ms al reanudar
     }
+
+    /// <summary>Posición actual de reproducción de esta pista (todas comparten la misma,
+    /// se usa la primera pista añadida como referencia para la UI).</summary>
+    public TimeSpan CurrentTime =>
+        _underlyingReader is AudioFileReader reader ? reader.CurrentTime : TimeSpan.Zero;
+
+    public TimeSpan TotalTime =>
+        _underlyingReader is AudioFileReader reader ? reader.TotalTime : TimeSpan.Zero;
 
     public void Dispose() => _underlyingReader.Dispose();
 }

@@ -14,7 +14,7 @@ namespace LimbusSplitPro.App;
 /// la reproducción multipista (MultiTrackMixer) siguen pendientes: no hay todavía un
 /// backend de modelos instalado y verificado en esta build (ver docs/01-modelos-licencias.md).
 /// </summary>
-public sealed class MainViewModel : INotifyPropertyChanged
+public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
 {
     public ObservableCollection<StemOption> StemOptions { get; } = new();
     public ObservableCollection<TrackChannelViewModel> Tracks { get; } = new();
@@ -72,6 +72,36 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public string SeparateButtonLabel => IsProcessing ? "Separando..." : "Separar y exportar";
 
+    // ===== Reproductor multipista (sección 14-16) =====
+    private LimbusSplitPro.Audio.MultiTrackMixer? _mixer;
+    private System.Windows.Threading.DispatcherTimer? _positionTimer;
+
+    private bool _isPlaying;
+    public bool IsPlaying
+    {
+        get => _isPlaying;
+        set { _isPlaying = value; OnPropertyChanged(); OnPropertyChanged(nameof(PlayPauseLabel)); }
+    }
+
+    public string PlayPauseLabel => IsPlaying ? "Pausar" : "Reproducir";
+
+    private string _positionText = "0:00";
+    public string PositionText
+    {
+        get => _positionText;
+        set { _positionText = value; OnPropertyChanged(); }
+    }
+
+    private string _durationText = "0:00";
+    public string DurationText
+    {
+        get => _durationText;
+        set { _durationText = value; OnPropertyChanged(); }
+    }
+
+    public RelayCommand PlayPauseCommand { get; }
+    public RelayCommand StopCommand { get; }
+
     public RelayCommand SelectAllCommand { get; }
     public RelayCommand SelectNoneCommand { get; }
     public RelayCommand ChooseFileCommand { get; }
@@ -117,6 +147,67 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         SeparateCommand = new RelayCommand(async _ => await ExecuteSeparateAsync(),
             _ => HasLoadedFile && StemOptions.Any(s => s.IsSelected) && HasWorkingFolder && !IsProcessing);
+
+        PlayPauseCommand = new RelayCommand(_ =>
+        {
+            if (_mixer is null) return;
+            if (IsPlaying) { _mixer.Pause(); IsPlaying = false; }
+            else { _mixer.Play(); IsPlaying = true; }
+        }, _ => HasTracks);
+
+        StopCommand = new RelayCommand(_ =>
+        {
+            if (_mixer is null) return;
+            _mixer.Stop();
+            _mixer.Seek(TimeSpan.Zero);
+            IsPlaying = false;
+            PositionText = FormatTime(TimeSpan.Zero);
+        }, _ => HasTracks);
+
+        _positionTimer = new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(250),
+        };
+        _positionTimer.Tick += (_, _) =>
+        {
+            if (_mixer is null) return;
+            PositionText = FormatTime(_mixer.CurrentPosition);
+            // El WasapiOut pasa a Stopped solo al llegar al final o al llamar Stop();
+            // se detecta aquí para reflejar "Reproducir" de nuevo sin que el usuario
+            // tenga que pulsar Pausa manualmente cuando la canción termina sola.
+            if (IsPlaying && _mixer.PlaybackState == NAudio.Wave.PlaybackState.Stopped)
+                IsPlaying = false;
+        };
+        _positionTimer.Start();
+    }
+
+    private static string FormatTime(TimeSpan t) => $"{(int)t.TotalMinutes}:{t.Seconds:00}";
+
+    /// <summary>
+    /// Carga los WAV generados por la separación real en el mezclador multipista
+    /// (sección 14-16). Se llama al recibir el evento "result" del motor.
+    /// </summary>
+    private void LoadTracksIntoMixer(IReadOnlyList<string> outputFiles)
+    {
+        _mixer?.Dispose();
+        Tracks.Clear();
+
+        _mixer = new LimbusSplitPro.Audio.MultiTrackMixer();
+        foreach (var filePath in outputFiles)
+        {
+            var name = Path.GetFileNameWithoutExtension(filePath);
+            var audioChannel = _mixer.AddTrack(name, filePath);
+
+            var vm = new TrackChannelViewModel { Name = name, IconGlyph = "\uE8D6" };
+            vm.AudioChannel = audioChannel;
+            vm.RequestRecompute = () => _mixer?.RecomputeAudibility();
+            Tracks.Add(vm);
+        }
+
+        OnPropertyChanged(nameof(HasTracks));
+        OnPropertyChanged(nameof(HasNoTracks));
+        DurationText = FormatTime(_mixer.TotalDuration);
+        PositionText = FormatTime(TimeSpan.Zero);
     }
 
     /// <summary>
@@ -163,6 +254,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
             await using var client = new EngineProcessClient(enginePath, pythonHome, enginePyPath, manifestPath, modelsDir, ffmpegDir);
             await foreach (var evt in client.RunAsync(request, timeoutCts.Token))
             {
+                if (evt.Event == "result" && evt.OutputFiles is { Count: > 0 })
+                    LoadTracksIntoMixer(evt.OutputFiles);
+
                 StatusMessage = evt.Event switch
                 {
                     "stage" => $"Etapa: {evt.Stage}",
@@ -292,4 +386,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnPropertyChanged([CallerMemberName] string? name = null) =>
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+    /// <summary>Libera el mixer y detiene el timer al cerrar la ventana (sección 8/22:
+    /// al cerrar la app no debe quedar el dispositivo de audio ni procesos bloqueados).</summary>
+    public void Dispose()
+    {
+        _positionTimer?.Stop();
+        _mixer?.Dispose();
+    }
 }

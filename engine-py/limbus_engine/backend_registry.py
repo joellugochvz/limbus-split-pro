@@ -13,10 +13,9 @@ from pathlib import Path
 from limbus_engine.backends.base import SeparationBackend, SeparationRequest, UnauthorizedModelError
 from limbus_engine.backends.spleeter_backend import SpleeterBackend
 
-# El host C# (EngineProcessClient) debe fijar estas variables de entorno para
-# que el motor sepa donde esta el manifiesto y la carpeta de modelos descargados.
 MANIFEST_PATH_ENV = "LIMBUS_MANIFEST_PATH"
 MODELS_DIR_ENV = "LIMBUS_MODELS_DIR"
+TORCH_HOME_ENV = "LIMBUS_TORCH_HOME"  # solo relevante si demucs esta habilitado
 
 
 def _load_manifest() -> dict:
@@ -30,6 +29,10 @@ def _load_manifest() -> dict:
         return json.load(f)
 
 
+def _find_entry(manifest: dict, model_id: str) -> dict | None:
+    return next((m for m in manifest.get("models", []) if m.get("id") == model_id), None)
+
+
 def resolve_backend(request: SeparationRequest) -> SeparationBackend:
     manifest = _load_manifest()
     models_dir = os.environ.get(MODELS_DIR_ENV)
@@ -38,33 +41,38 @@ def resolve_backend(request: SeparationRequest) -> SeparationBackend:
 
     is_public_build = manifest.get("buildType") == "public"
 
-    entry = next((m for m in manifest.get("models", []) if m.get("id") == "spleeter-4stems"), None)
-    if entry is None:
+    # ---- Demucs (htdemucs_6s): SOLO en build de desarrollo, NUNCA en build publica. ----
+    # No requiere redistributionAuthorized/commercialUseAuthorized porque, por diseno,
+    # jamas puede usarse fuera de una build local no distribuible (ver docs/01-modelos-licencias.md).
+    demucs_entry = _find_entry(manifest, "demucs-htdemucs_6s")
+    if demucs_entry is not None and not is_public_build:
+        covered = set(demucs_entry.get("capabilities", []))
+        if any(stem in covered for stem in request.requested_stems):
+            torch_home = os.environ.get(TORCH_HOME_ENV)
+            if torch_home and Path(torch_home).exists():
+                from limbus_engine.backends.demucs_backend import DemucsBackend
+                return DemucsBackend(torch_home=torch_home)
+
+    # ---- Spleeter 4stems: MIT confirmado, valido en build publica y de desarrollo. ----
+    spleeter_entry = _find_entry(manifest, "spleeter-4stems")
+    if spleeter_entry is None:
         raise UnauthorizedModelError("El modelo 'spleeter-4stems' no esta registrado en el manifiesto.")
 
-    eligible = entry.get("redistributionAuthorized") and entry.get("commercialUseAuthorized")
+    eligible = spleeter_entry.get("redistributionAuthorized") and spleeter_entry.get("commercialUseAuthorized")
     if is_public_build and not eligible:
         raise UnauthorizedModelError(
             "El modelo 'spleeter-4stems' no tiene autorizacion de redistribucion/uso comercial "
             "verificada: bloqueado en build publica."
         )
 
-    # Verifica que al menos alguna categoria solicitada sea cubierta por este backend;
-    # si ninguna lo es (p. ej. el usuario solo pidio "guitarra"), se rechaza explicito
-    # en vez de devolver un resultado vacio silenciosamente.
-    covered = set(entry.get("capabilities", []))
+    covered = set(spleeter_entry.get("capabilities", []))
     if not any(stem in covered for stem in request.requested_stems):
         raise UnauthorizedModelError(
             "Ninguna de las categorias solicitadas esta cubierta por un modelo autorizado "
             "en esta build. Revisa docs/01-modelos-licencias.md para el detalle de bloqueos."
         )
 
-    # relativePath del manifiesto es "models/spleeter/4stems": SpleeterBackend espera
-    # la carpeta PADRE de "4stems" (equivalente al MODEL_PATH que usaria el propio
-    # downloader de Spleeter). Se deriva del manifiesto en vez de asumir un valor fijo,
-    # para no repetir el bug real encontrado en pruebas (buscaba en models/4stems en
-    # vez de models/spleeter/4stems).
-    relative_parent = Path(entry["relativePath"]).parent  # "models/spleeter" -> Path("models/spleeter")
-    spleeter_model_dir = str(Path(models_dir) / relative_parent.name)  # models_dir/"spleeter"
+    relative_parent = Path(spleeter_entry["relativePath"]).parent
+    spleeter_model_dir = str(Path(models_dir) / relative_parent.name)
 
     return SpleeterBackend(model_dir=spleeter_model_dir)

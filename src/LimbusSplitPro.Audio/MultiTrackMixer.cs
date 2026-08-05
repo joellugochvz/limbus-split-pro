@@ -42,7 +42,7 @@ public sealed class MultiTrackMixer : IDisposable
         if (reader.WaveFormat.SampleRate != _sampleRate || reader.WaveFormat.Channels != _channels)
             provider = new WdlResamplingSampleProvider(reader, _sampleRate); // + conversión de canales si aplica
 
-        var channel = new TrackChannel(name, provider, reader);
+        var channel = new TrackChannel(name, wavFilePath, provider, reader);
         _tracks.Add(channel);
         _mixer.AddMixerInput(channel.RampedProvider);
         return channel;
@@ -79,6 +79,62 @@ public sealed class MultiTrackMixer : IDisposable
         foreach (var t in _tracks) t.SeekWithCrossfade(position);
     }
 
+    /// <summary>
+    /// Exporta la mezcla actual (volumen/mute/solo tal como están, sección 17) de forma
+    /// OFFLINE y sample-accurate: reabre cada WAV desde cero y los suma en memoria, sin
+    /// grabar la salida del dispositivo en tiempo real y sin interferir con la reproducción
+    /// en curso (usa lectores independientes de los que están sonando).
+    /// </summary>
+    public ExportResult ExportMix(string outputWavPath)
+    {
+        if (_tracks.Count == 0)
+            throw new InvalidOperationException("No hay pistas cargadas para exportar.");
+
+        bool anySolo = _tracks.Any(t => t.IsSolo);
+        var format = WaveFormat.CreateIeeeFloatWaveFormat(_sampleRate, _channels);
+        var offlineMixer = new MixingSampleProvider(format) { ReadFully = false };
+
+        var freshReaders = new List<AudioFileReader>();
+        try
+        {
+            foreach (var t in _tracks)
+            {
+                // Misma regla de audibilidad que en vivo (sección 16), aplicada aquí como
+                // ganancia fija en vez de rampa en tiempo real (no aplica en un render offline).
+                var audible = anySolo ? (t.IsSolo && !t.IsMuted) : !t.IsMuted;
+                var gain = audible ? t.Volume : 0f;
+
+                var reader = new AudioFileReader(t.FilePath);
+                freshReaders.Add(reader);
+                ISampleProvider provider = reader;
+                if (reader.WaveFormat.SampleRate != _sampleRate || reader.WaveFormat.Channels != _channels)
+                    provider = new WdlResamplingSampleProvider(reader, _sampleRate);
+                offlineMixer.AddMixerInput(new VolumeSampleProvider(provider) { Volume = gain });
+            }
+
+            bool clippingDetected = false;
+            var buffer = new float[_sampleRate * _channels]; // ~1s por bloque
+            using var writer = new WaveFileWriter(outputWavPath, new WaveFormat(_sampleRate, 16, _channels));
+            int read;
+            while ((read = offlineMixer.Read(buffer, 0, buffer.Length)) > 0)
+            {
+                for (int i = 0; i < read; i++)
+                {
+                    if (buffer[i] > 1f || buffer[i] < -1f) clippingDetected = true;
+                }
+                writer.WriteSamples(buffer, 0, read);
+            }
+
+            // No se normaliza silenciosamente (sección 17): solo se informa si hubo
+            // clipping para que el usuario decida, no se altera la ganancia automáticamente.
+            return new ExportResult(outputWavPath, clippingDetected);
+        }
+        finally
+        {
+            foreach (var r in freshReaders) r.Dispose();
+        }
+    }
+
     public void Dispose()
     {
         _output.Dispose();
@@ -92,10 +148,13 @@ public sealed class MultiTrackMixer : IDisposable
     }
 }
 
+public sealed record ExportResult(string FilePath, bool ClippingDetected);
+
 /// <summary>Una pista del mezclador: nombre, mute, solo, volumen con rampa de ganancia.</summary>
 public sealed class TrackChannel : IDisposable
 {
     public string Name { get; }
+    public string FilePath { get; }
     public bool IsMuted { get; private set; }
     public bool IsSolo { get; private set; }
     public float Volume { get; private set; } = 1.0f;
@@ -105,9 +164,10 @@ public sealed class TrackChannel : IDisposable
 
     public ISampleProvider RampedProvider => _volumeProvider;
 
-    internal TrackChannel(string name, ISampleProvider provider, IDisposable underlyingReader)
+    internal TrackChannel(string name, string filePath, ISampleProvider provider, IDisposable underlyingReader)
     {
         Name = name;
+        FilePath = filePath;
         _underlyingReader = underlyingReader;
         _volumeProvider = new VolumeSampleProvider(provider) { Volume = 1.0f };
     }

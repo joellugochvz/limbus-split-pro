@@ -225,6 +225,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         var manifestPath = Path.Combine(baseDir, "legal", "model-manifest.json");
         var modelsDir = Path.Combine(baseDir, "legal", "models");
         var ffmpegDir = Path.Combine(baseDir, "runtime", "ffmpeg");
+        var torchHomeCandidate = Path.Combine(baseDir, "runtime", "torch-cache");
+        var torchHome = Directory.Exists(torchHomeCandidate) ? torchHomeCandidate : null;
 
         if (!File.Exists(enginePath))
         {
@@ -251,7 +253,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
                 Device = "auto",
             };
 
-            await using var client = new EngineProcessClient(enginePath, pythonHome, enginePyPath, manifestPath, modelsDir, ffmpegDir);
+            await using var client = new EngineProcessClient(enginePath, pythonHome, enginePyPath, manifestPath, modelsDir, ffmpegDir, torchHome);
             await foreach (var evt in client.RunAsync(request, timeoutCts.Token))
             {
                 if (evt.Event == "result" && evt.OutputFiles is { Count: > 0 })
@@ -363,23 +365,29 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             UnavailableReason = "Sin modelo con licencia comercial verificada (ver docs/01-modelos-licencias.md)."
         });
         StemOptions.Add(new StemOption { Id = "bajo", Title = "Bajo", Subtitle = "Bajo eléctrico y sintético", IconGlyph = "\uE71E" });
+
+        // Guitarra y piano solo están disponibles si esta build específica incluye
+        // Demucs htdemucs_6s (build de desarrollo, uso personal, repo privado — ver
+        // docs/01-modelos-licencias.md). Se detecta en tiempo real, no se asume.
+        var hasDemucs = Directory.Exists(Path.Combine(AppContext.BaseDirectory, "runtime", "torch-cache"));
+
         StemOptions.Add(new StemOption
         {
             Id = "guitarra",
             Title = "Guitarra",
-            Subtitle = "Acústica y eléctrica",
+            Subtitle = hasDemucs ? "Acústica y eléctrica (Demucs, uso personal)" : "Acústica y eléctrica",
             IconGlyph = "\uE71E",
-            IsAvailable = false,
-            UnavailableReason = "Solo disponible en htdemucs_6s, bloqueado por licencia de pesos no confirmada."
+            IsAvailable = hasDemucs,
+            UnavailableReason = "Solo disponible en htdemucs_6s (build de desarrollo personal), no empaquetado en esta build."
         });
         StemOptions.Add(new StemOption
         {
             Id = "piano",
             Title = "Piano y teclados",
-            Subtitle = "Piano, órgano y teclas",
+            Subtitle = hasDemucs ? "Piano, órgano y teclas (Demucs, uso personal)" : "Piano, órgano y teclas",
             IconGlyph = "\uE711",
-            IsAvailable = false,
-            UnavailableReason = "Requiere el modelo Spleeter 5stems, todavía no instalado ni verificado."
+            IsAvailable = hasDemucs,
+            UnavailableReason = "Solo disponible en htdemucs_6s (build de desarrollo personal), no empaquetado en esta build."
         });
     }
 

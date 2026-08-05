@@ -101,6 +101,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
 
     public RelayCommand PlayPauseCommand { get; }
     public RelayCommand StopCommand { get; }
+    public RelayCommand ExportMixCommand { get; }
 
     public RelayCommand SelectAllCommand { get; }
     public RelayCommand SelectNoneCommand { get; }
@@ -163,6 +164,23 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             IsPlaying = false;
             PositionText = FormatTime(TimeSpan.Zero);
         }, _ => HasTracks);
+
+        ExportMixCommand = new RelayCommand(_ =>
+        {
+            if (_mixer is null) return;
+            try
+            {
+                var outputPath = Path.Combine(WorkingFolderPath, "Mezcla.wav");
+                var result = _mixer.ExportMix(outputPath);
+                StatusMessage = result.ClippingDetected
+                    ? $"Mezcla exportada en {Path.GetFileName(outputPath)} (aviso: se detectó clipping, considera bajar el volumen de alguna pista)."
+                    : $"Mezcla exportada en {Path.GetFileName(outputPath)}.";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"No se pudo exportar la mezcla: {ex.Message}";
+            }
+        }, _ => HasTracks && HasWorkingFolder);
 
         _positionTimer = new System.Windows.Threading.DispatcherTimer
         {

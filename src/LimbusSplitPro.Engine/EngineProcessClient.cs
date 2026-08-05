@@ -29,6 +29,7 @@ public sealed class EngineProcessClient : IAsyncDisposable
     private readonly string _manifestPath;
     private readonly string _modelsDir;
     private readonly string? _ffmpegDir;
+    private readonly string? _torchHome;
     private Process? _process;
 
     /// <param name="enginePath">Ruta a python.exe dentro del runtime embebido.</param>
@@ -42,8 +43,10 @@ public sealed class EngineProcessClient : IAsyncDisposable
     /// del proceso hijo. Spleeter depende del binario ffmpeg para leer/escribir audio; sin
     /// esto puede quedarse colgado indefinidamente sin ningún error visible (comportamiento
     /// real reportado en deezer/spleeter#819) en vez de fallar con un mensaje claro.</param>
+    /// <param name="torchHome">Carpeta con los pesos de Demucs pre-descargados (solo build
+    /// de desarrollo, uso personal). Si es null, Demucs simplemente no está disponible.</param>
     public EngineProcessClient(string enginePath, string pythonHome, string enginePyPath,
-        string manifestPath, string modelsDir, string? ffmpegDir = null)
+        string manifestPath, string modelsDir, string? ffmpegDir = null, string? torchHome = null)
     {
         _enginePath = enginePath;
         _pythonHome = pythonHome;
@@ -51,6 +54,7 @@ public sealed class EngineProcessClient : IAsyncDisposable
         _manifestPath = manifestPath;
         _modelsDir = modelsDir;
         _ffmpegDir = ffmpegDir;
+        _torchHome = torchHome;
     }
 
     public async IAsyncEnumerable<EngineEvent> RunAsync(
@@ -82,6 +86,8 @@ public sealed class EngineProcessClient : IAsyncDisposable
         psi.EnvironmentVariables["PYTHONPATH"] = _enginePyPath;
         psi.EnvironmentVariables["LIMBUS_MANIFEST_PATH"] = _manifestPath;
         psi.EnvironmentVariables["LIMBUS_MODELS_DIR"] = _modelsDir;
+        if (!string.IsNullOrEmpty(_torchHome))
+            psi.EnvironmentVariables["LIMBUS_TORCH_HOME"] = _torchHome;
         if (!string.IsNullOrEmpty(_ffmpegDir))
         {
             var currentPath = Environment.GetEnvironmentVariable("PATH") ?? "";

@@ -190,6 +190,53 @@ jobs:
           path: legal/models/spleeter/4stems/
           retention-days: 14
 
+      - name: Instalar Demucs (SOLO uso personal, build de desarrollo, repo privado)
+        shell: pwsh
+        run: |
+          # Demucs htdemucs_6s: licencia de pesos NO confirmada (ver docs/01-modelos-licencias.md).
+          # Este paso SOLO se ejecuta porque el repositorio es privado y esta build nunca se
+          # distribuye publicamente (manifest.buildType = "development"). Se deja que el propio
+          # codigo oficial de Demucs descargue los pesos (no se inventan URLs aqui), en un paso
+          # de CI explicito y controlado, NUNCA en tiempo de ejecucion de la app del usuario.
+          $py = "runtime/python-embed/dist/python.exe"
+
+          $torchOutput = & $py -m pip install --no-warn-script-location --index-url https://download.pytorch.org/whl/cpu torch 2>&1 | Out-String
+          Write-Host $torchOutput
+          if ($LASTEXITCODE -ne 0) {
+            $lines = ($torchOutput -split "`r?`n" | Select-Object -Last 80)
+            $escaped = ($lines -join "%0A")
+            Write-Output "::error::TORCH_INSTALL_FAIL%0A$escaped"
+            exit 1
+          }
+
+          $demucsOutput = & $py -m pip install --no-warn-script-location demucs 2>&1 | Out-String
+          Write-Host $demucsOutput
+          if ($LASTEXITCODE -ne 0) {
+            $lines = ($demucsOutput -split "`r?`n" | Select-Object -Last 80)
+            $escaped = ($lines -join "%0A")
+            Write-Output "::error::DEMUCS_INSTALL_FAIL%0A$escaped"
+            exit 1
+          }
+          Write-Output "::notice::DEMUCS_INSTALL_OK"
+
+          New-Item -ItemType Directory -Force -Path "runtime/torch-cache" | Out-Null
+          $env:TORCH_HOME = (Resolve-Path "runtime/torch-cache").Path
+          $downloadOutput = & $py -c "from demucs.api import Separator; Separator(model='htdemucs_6s'); print('MODEL_DOWNLOADED_OK')" 2>&1 | Out-String
+          Write-Host $downloadOutput
+          if ($LASTEXITCODE -ne 0) {
+            $lines = ($downloadOutput -split "`r?`n" | Select-Object -Last 80)
+            $escaped = ($lines -join "%0A")
+            Write-Output "::error::DEMUCS_MODEL_DOWNLOAD_FAIL%0A$escaped"
+            exit 1
+          }
+
+          $files = Get-ChildItem -Path "runtime/torch-cache" -Recurse -File
+          $summary = ($files | ForEach-Object {
+            $hash = (Get-FileHash -Path $_.FullName -Algorithm SHA256).Hash.ToLower()
+            "$($_.Name)=$($_.Length)bytes,sha256=$hash"
+          }) -join " | "
+          Write-Output "::notice::DEMUCS_CACHE_FILES $summary"
+
       - name: Descargar y verificar FFmpeg estatico (LGPL) para Windows
         shell: pwsh
         run: |
@@ -254,6 +301,10 @@ jobs:
           Copy-Item -Recurse -Force legal/models publish/LimbusSplitPro/legal/models
           New-Item -ItemType Directory -Force -Path publish/LimbusSplitPro/runtime/ffmpeg | Out-Null
           Copy-Item -Recurse -Force runtime/ffmpeg/* publish/LimbusSplitPro/runtime/ffmpeg/
+          if (Test-Path "runtime/torch-cache") {
+            New-Item -ItemType Directory -Force -Path publish/LimbusSplitPro/runtime/torch-cache | Out-Null
+            Copy-Item -Recurse -Force runtime/torch-cache/* publish/LimbusSplitPro/runtime/torch-cache/
+          }
 
           # Diagnostico real: verificar si el DLL de OpenBLAS sobrevivio el Copy-Item -Recurse
           # hacia la carpeta que se empaqueta. Esto aisla si el problema esta en este paso

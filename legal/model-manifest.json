@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0",
   "buildType": "development",
-  "_comment": "El modelo spleeter-4stems tiene hash y tamano REALES, verificados en un runner Windows real de GitHub Actions (2026-07-25). htdemucs sigue bloqueado por licencia de pesos no confirmada (ver docs/01-modelos-licencias.md).",
+  "_comment": "spleeter-4stems: hash real verificado. demucs-htdemucs_6s: SOLO para build de desarrollo/personal, nunca build publica (licencia de pesos no confirmada, ver docs/01-modelos-licencias.md). Hash y version pendientes hasta decidir como se instala (repo privado o instalacion manual local).",
   "models": [
     {
       "id": "spleeter-4stems",
@@ -20,20 +20,21 @@
       "commercialUseAuthorized": true
     },
     {
-      "id": "htdemucs",
-      "relativePath": "models/demucs/htdemucs",
-      "sha256": "0000000000000000000000000000000000000000000000000000000000000",
+      "id": "demucs-htdemucs_6s",
+      "relativePath": "PENDIENTE_INSTALACION_LOCAL",
+      "sha256": "PENDIENTE",
       "expectedSizeBytes": 0,
-      "version": "PENDIENTE",
+      "version": "htdemucs_6s",
       "origin": "https://github.com/facebookresearch/demucs",
       "codeLicense": "MIT",
       "weightsLicense": "NO_ESPECIFICADA",
       "licenseEvidenceUrl": "https://github.com/facebookresearch/demucs/issues/327",
       "author": "Meta AI / Alexandre Défossez et al.",
       "attribution": "Demucs (c) Meta Platforms, código MIT",
-      "capabilities": ["voz_principal", "coros", "bateria_completa", "bajo", "guitarra", "piano_teclados", "other"],
+      "capabilities": ["voces", "voz_principal", "bateria", "bajo", "guitarra", "piano", "other"],
       "redistributionAuthorized": false,
-      "commercialUseAuthorized": false
+      "commercialUseAuthorized": false,
+      "_nota": "Uso exclusivamente personal en build de desarrollo (backend_registry.py lo permite SOLO cuando buildType != 'public'). No se activa hasta decidir el método de instalación."
     }
   ]
 }

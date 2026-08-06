@@ -33,3 +33,6 @@ dotnet test tests/LimbusSplitPro.Tests/LimbusSplitPro.Tests.csproj -c Release
    `MainWindow.xaml` de verdad — ahora mismo es un placeholder de dos paneles sin diseño.
 3. Descargamos y verificamos (hash real) los pesos de Spleeter/Open-Unmix para completar
    `legal/model-manifest.json` con datos reales.
+
+
+<!-- test trigger 1786048055 -->

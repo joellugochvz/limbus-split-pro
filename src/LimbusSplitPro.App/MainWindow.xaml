@@ -228,6 +228,21 @@
                             </TextBlock>
                         </Border>
 
+                        <!-- Instalacion opcional de Demucs, SOLO uso personal (seccion 7):
+                             se dispara unicamente con este clic explicito, nunca en silencio.
+                             Desaparece una vez instalado. -->
+                        <Border Visibility="{Binding NeedsDemucsInstall, Converter={StaticResource BoolToVis}}"
+                                BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="8"
+                                Padding="10" Margin="0,8,0,0">
+                            <StackPanel>
+                                <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8">
+                                    <Run Text="Guitarra y piano requieren Demucs, un motor adicional cuya licencia de pesos no está confirmada — solo se ofrece para uso personal, nunca se distribuye." />
+                                </TextBlock>
+                                <Button Content="{Binding InstallDemucsLabel}" Style="{StaticResource PillButtonStyle}"
+                                        Command="{Binding InstallDemucsCommand}" HorizontalAlignment="Left" />
+                            </StackPanel>
+                        </Border>
+
                         <Separator Margin="0,16" Opacity="0.4" />
 
                         <TextBlock Text="03 · CARPETA DE TRABAJO" FontSize="11" FontWeight="Bold"

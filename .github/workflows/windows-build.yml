@@ -191,6 +191,13 @@ jobs:
           retention-days: 14
 
       - name: Instalar Demucs (SOLO uso personal, build de desarrollo, repo privado)
+        # CONDICION REAL, no un comentario: GitHub Actions evalua esto server-side y
+        # simplemente NO EJECUTA el paso si el repo es publico, sin depender de que
+        # nadie se acuerde de nada. Incidente real (2026-08-05): este paso corrio en
+        # una build publica porque solo tenia un comentario, no una condicion real;
+        # los pesos de Demucs (licencia no confirmada) quedaron expuestos en un
+        # artifact publico durante unas horas hasta que se detecto y se borro.
+        if: ${{ github.event.repository.private == true }}
         shell: pwsh
         run: |
           # Demucs htdemucs_6s: licencia de pesos NO confirmada (ver docs/01-modelos-licencias.md).

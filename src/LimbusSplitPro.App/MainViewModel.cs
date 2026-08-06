@@ -103,6 +103,27 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     public RelayCommand StopCommand { get; }
     public RelayCommand ExportMixCommand { get; }
 
+    // ===== Instalacion opcional de Demucs (solo uso personal, ver docs/01-modelos-licencias.md) =====
+    private bool _hasDemucsInstalled;
+    public bool HasDemucsInstalled
+    {
+        get => _hasDemucsInstalled;
+        set { _hasDemucsInstalled = value; OnPropertyChanged(); OnPropertyChanged(nameof(NeedsDemucsInstall)); }
+    }
+
+    public bool NeedsDemucsInstall => !HasDemucsInstalled;
+
+    private bool _isInstallingDemucs;
+    public bool IsInstallingDemucs
+    {
+        get => _isInstallingDemucs;
+        set { _isInstallingDemucs = value; OnPropertyChanged(); OnPropertyChanged(nameof(InstallDemucsLabel)); }
+    }
+
+    public string InstallDemucsLabel => IsInstallingDemucs ? "Instalando..." : "Instalar Demucs (opcional, uso personal)";
+
+    public RelayCommand InstallDemucsCommand { get; }
+
     public RelayCommand SelectAllCommand { get; }
     public RelayCommand SelectNoneCommand { get; }
     public RelayCommand ChooseFileCommand { get; }
@@ -181,6 +202,11 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
                 StatusMessage = $"No se pudo exportar la mezcla: {ex.Message}";
             }
         }, _ => HasTracks && HasWorkingFolder);
+
+        HasDemucsInstalled = Directory.Exists(Path.Combine(AppContext.BaseDirectory, "runtime", "torch-cache"));
+
+        InstallDemucsCommand = new RelayCommand(async _ => await ExecuteInstallDemucsAsync(),
+            _ => !HasDemucsInstalled && !IsInstallingDemucs);
 
         _positionTimer = new System.Windows.Threading.DispatcherTimer
         {
@@ -305,6 +331,69 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         finally
         {
             IsProcessing = false;
+        }
+    }
+
+    /// <summary>
+    /// Instala Demucs (opcional, uso estrictamente personal, ver docs/01-modelos-licencias.md)
+    /// dentro del propio runtime Python embebido. Se dispara SOLO por un clic explícito del
+    /// usuario (nunca automáticamente), y todo el proceso ocurre en la máquina local del
+    /// usuario, sin pasar por GitHub/CI/artifacts públicos en ningún momento.
+    /// </summary>
+    private async Task ExecuteInstallDemucsAsync()
+    {
+        var baseDir = AppContext.BaseDirectory;
+        var pythonHome = Path.Combine(baseDir, "runtime", "python-embed", "dist");
+        var enginePath = Path.Combine(pythonHome, "python.exe");
+        var torchCacheDir = Path.Combine(baseDir, "runtime", "torch-cache");
+
+        if (!File.Exists(enginePath))
+        {
+            StatusMessage = "Runtime Python no encontrado; no se puede instalar Demucs sin él.";
+            return;
+        }
+
+        IsInstallingDemucs = true;
+        StatusMessage = "Instalando Demucs (solo uso personal)...";
+
+        // Sin límite de tiempo corto: la descarga de PyTorch + el modelo puede tardar
+        // bastante en una conexión doméstica normal. 60 min es generoso mas no infinito.
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(60));
+
+        try
+        {
+            var installer = new DemucsInstaller(enginePath, pythonHome, torchCacheDir);
+            await foreach (var line in installer.InstallAsync(timeoutCts.Token))
+            {
+                if (!string.IsNullOrWhiteSpace(line))
+                    StatusMessage = line.Length > 140 ? line[..140] + "…" : line;
+            }
+
+            HasDemucsInstalled = Directory.Exists(torchCacheDir);
+            if (HasDemucsInstalled)
+            {
+                StatusMessage = "Demucs instalado. Guitarra y piano ya están disponibles.";
+                // Se reconstruye la lista de stems para reflejar guitarra/piano habilitados
+                // (StemOption.IsAvailable es de solo inicialización, ver StemOption.cs).
+                StemOptions.Clear();
+                SeedStemOptions();
+            }
+            else
+            {
+                StatusMessage = "La instalación terminó pero no se encontró el modelo descargado. Revisa el log técnico.";
+            }
+        }
+        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested)
+        {
+            StatusMessage = "Se canceló la instalación de Demucs: superó el tiempo máximo esperado (60 min).";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"No se pudo instalar Demucs: {ex.Message}";
+        }
+        finally
+        {
+            IsInstallingDemucs = false;
         }
     }
 

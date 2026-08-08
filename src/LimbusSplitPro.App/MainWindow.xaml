@@ -297,6 +297,13 @@
                                     Command="{Binding PlayPauseCommand}" Margin="0,0,6,0" />
                             <Button Grid.Column="1" Content="Stop" Style="{StaticResource PillButtonStyle}"
                                     Command="{Binding StopCommand}" Margin="0,0,10,0" />
+                            <!-- Seek arrastrando (sección 15): PreviewMouseLeftButtonDown/Up en code-behind
+                                 evita que el timer de posición pelee con el arrastre del usuario. -->
+                            <Slider x:Name="SeekSlider" Grid.Column="2" VerticalAlignment="Center" Margin="0,0,10,0"
+                                    Minimum="0" Maximum="{Binding DurationSeconds}" Value="{Binding PositionSeconds, Mode=TwoWay}"
+                                    IsMoveToPointEnabled="True"
+                                    PreviewMouseLeftButtonDown="SeekSlider_PreviewMouseLeftButtonDown"
+                                    PreviewMouseLeftButtonUp="SeekSlider_PreviewMouseLeftButtonUp" />
                             <TextBlock Grid.Column="3" VerticalAlignment="Center" FontSize="12" Margin="0,0,10,0"
                                        Foreground="{StaticResource TextSecondaryBrush}">
                                 <Run Text="{Binding PositionText}" /><Run Text=" / " /><Run Text="{Binding DurationText}" />

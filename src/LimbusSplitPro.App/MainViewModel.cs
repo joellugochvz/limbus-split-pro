@@ -99,6 +99,39 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         set { _durationText = value; OnPropertyChanged(); }
     }
 
+    // ===== Seek arrastrando la barra (sección 15): "Clic y arrastre para hacer seek" =====
+    private double _positionSeconds;
+    public double PositionSeconds
+    {
+        get => _positionSeconds;
+        set { _positionSeconds = value; OnPropertyChanged(); }
+    }
+
+    private double _durationSeconds = 1; // >0 para que el Slider no truene con Maximum=0
+    public double DurationSeconds
+    {
+        get => _durationSeconds;
+        set { _durationSeconds = value <= 0 ? 1 : value; OnPropertyChanged(); }
+    }
+
+    /// <summary>true mientras el usuario tiene el mouse presionado sobre la barra:
+    /// el timer de posición no la pisa mientras arrastra (sección 15: el seek no
+    /// debe pelear con la actualización automática de posición).</summary>
+    private bool _isSeeking;
+    public bool IsSeeking
+    {
+        get => _isSeeking;
+        set { _isSeeking = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>Llamado desde el code-behind al soltar el mouse sobre la barra.</summary>
+    public void SeekTo(double seconds)
+    {
+        if (_mixer is null) return;
+        _mixer.Seek(TimeSpan.FromSeconds(Math.Max(0, seconds)));
+        PositionText = FormatTime(TimeSpan.FromSeconds(seconds));
+    }
+
     public RelayCommand PlayPauseCommand { get; }
     public RelayCommand StopCommand { get; }
     public RelayCommand ExportMixCommand { get; }
@@ -184,6 +217,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             _mixer.Seek(TimeSpan.Zero);
             IsPlaying = false;
             PositionText = FormatTime(TimeSpan.Zero);
+            PositionSeconds = 0;
         }, _ => HasTracks);
 
         ExportMixCommand = new RelayCommand(_ =>
@@ -216,6 +250,10 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         {
             if (_mixer is null) return;
             PositionText = FormatTime(_mixer.CurrentPosition);
+            // No se pisa la posición mientras el usuario está arrastrando la barra
+            // (sección 15: seek no debe pelear con la actualización automática).
+            if (!IsSeeking)
+                PositionSeconds = _mixer.CurrentPosition.TotalSeconds;
             // El WasapiOut pasa a Stopped solo al llegar al final o al llamar Stop();
             // se detecta aquí para reflejar "Reproducir" de nuevo sin que el usuario
             // tenga que pulsar Pausa manualmente cuando la canción termina sola.
@@ -252,6 +290,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(HasNoTracks));
         DurationText = FormatTime(_mixer.TotalDuration);
         PositionText = FormatTime(TimeSpan.Zero);
+        DurationSeconds = _mixer.TotalDuration.TotalSeconds;
+        PositionSeconds = 0;
     }
 
     /// <summary>

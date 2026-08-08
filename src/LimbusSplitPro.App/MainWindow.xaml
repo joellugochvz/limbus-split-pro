@@ -95,6 +95,74 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+
+        <!-- Botones Mute/Solo del mezclador: pastilla compacta y cuadrada, con color
+             de acento cuando está activo. Tamaño fijo para que todas las filas alineen
+             exactamente igual sin importar el contenido. -->
+        <Style x:Key="MixerToggleStyle" TargetType="ToggleButton">
+            <Setter Property="Width" Value="26" />
+            <Setter Property="Height" Value="26" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="ToggleBorder" CornerRadius="6" Background="{StaticResource DisabledOverlayBrush}"
+                                BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="ToggleBorder" Property="Background" Value="{StaticResource AccentBrush}" />
+                                <Setter TargetName="ToggleBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                <Setter Property="Foreground" Value="White" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Fader de volumen: carril delgado, thumb circular con acento. Ancho fijo para
+             que todos los faders del mezclador queden alineados en columna. -->
+        <Style x:Key="FaderSliderStyle" TargetType="Slider">
+            <Setter Property="Width" Value="110" />
+            <Setter Property="Height" Value="20" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Grid VerticalAlignment="Center">
+                            <Border Height="4" CornerRadius="2" Background="{StaticResource CardBorderBrush}" />
+                            <Track x:Name="PART_Track">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="Slider.DecreaseLarge" Height="4">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Height="4" CornerRadius="2" Background="{StaticResource AccentBrush}" />
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.DecreaseRepeatButton>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="Slider.IncreaseLarge" Height="4" Background="Transparent" BorderThickness="0" />
+                                </Track.IncreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb Width="13" Height="13" Cursor="Hand">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Ellipse Fill="{StaticResource AccentBrush}" Stroke="White" StrokeThickness="1.5" />
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Window.DataContext>
@@ -324,24 +392,51 @@
                         </StackPanel>
 
                         <!-- Lista de pistas del mezclador (sección 16), se llena cuando haya separación real -->
-                        <ListBox ItemsSource="{Binding Tracks}" BorderThickness="0" Background="Transparent">
+                        <ListBox ItemsSource="{Binding Tracks}" BorderThickness="0" Background="Transparent"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem">
+                                    <Setter Property="Padding" Value="0" />
+                                    <Setter Property="Focusable" Value="False" />
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="ListBoxItem">
+                                                <ContentPresenter />
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <Border BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="0,0,0,1" Padding="0,10">
+                                    <Border BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="0,0,0,1" Padding="0,12">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="140" />
+                                                <ColumnDefinition Width="34" />
+                                                <ColumnDefinition Width="110" />
                                             </Grid.ColumnDefinitions>
+
                                             <TextBlock Grid.Column="0" Text="{Binding IconGlyph}" FontFamily="Segoe Fluent Icons"
                                                        VerticalAlignment="Center" Margin="0,0,10,0" Foreground="{StaticResource AccentBrush}" />
-                                            <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center" FontWeight="SemiBold" />
-                                            <ToggleButton Grid.Column="2" Content="M" Width="28" IsChecked="{Binding IsMuted}" Margin="4,0" />
-                                            <ToggleButton Grid.Column="3" Content="S" Width="28" IsChecked="{Binding IsSolo}" Margin="4,0" />
-                                            <Slider Grid.Column="4" Minimum="0" Maximum="100" Value="{Binding VolumePercent}" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center" FontWeight="SemiBold"
+                                                       TextTrimming="CharacterEllipsis" Margin="0,0,16,0" />
+
+                                            <!-- Grupo Mute/Solo, compacto -->
+                                            <ToggleButton Grid.Column="2" Content="M" Style="{StaticResource MixerToggleStyle}"
+                                                          IsChecked="{Binding IsMuted}" Margin="0,0,4,0" ToolTip="Silenciar" />
+                                            <ToggleButton Grid.Column="3" Content="S" Style="{StaticResource MixerToggleStyle}"
+                                                          IsChecked="{Binding IsSolo}" Margin="0,0,16,0" ToolTip="Solo" />
+
+                                            <!-- Porcentaje + fader, alineados a la derecha del recuadro -->
+                                            <TextBlock Grid.Column="4" VerticalAlignment="Center" HorizontalAlignment="Right"
+                                                       FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,8,0"
+                                                       Text="{Binding VolumePercent, StringFormat={}{0:0}%}" />
+                                            <Slider Grid.Column="5" Style="{StaticResource FaderSliderStyle}"
+                                                    Minimum="0" Maximum="100" Value="{Binding VolumePercent}" />
                                         </Grid>
                                     </Border>
                                 </DataTemplate>
